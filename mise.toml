@@ -1,0 +1,12 @@
+[tools]
+uv = "0.12.19"
+
+[tasks.test]
+run = "uv run manage.py test"
+
+[tasks.lint]
+run = '''
+uv run ruff check .
+uv run ruff format --check .
+uv run ty check .
+'''
