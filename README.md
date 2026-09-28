@@ -112,42 +112,56 @@ pnpm -C frontend build
 On the droplet, install the base packages and create an unprivileged app user:
 
 ```sh
-sudo apt update && sudo apt install -y caddy sqlite3 curl ca-certificates
-sudo adduser --system --group --home /opt/pollingjuegos pollingjuegos
-sudo chmod 755 /opt/pollingjuegos
+sudo apt update && sudo apt install -y git caddy sqlite3 curl ca-certificates
+sudo adduser --system --group --home /var/lib/pollingjuegos pollingjuegos
+sudo install -d -o pollingjuegos -g pollingjuegos -m 0755 /opt/pollingjuegos
 sudo install -d -o pollingjuegos -g pollingjuegos -m 0700 /var/backups/pollingjuegos
 curl -LsSf https://astral.sh/uv/install.sh | sh
 sudo install -m 0755 "$HOME/.local/bin/uv" /usr/local/bin/uv
 ```
 
 Review the installer before running it in production if you prefer a pinned
-binary. From the repository on your workstation, upload code and the built
-`frontend/dist/` without overwriting the server's SQLite database or secrets
-(replace `IP` with Terraform's output):
+binary. For a private GitHub repo, create a **fine-grained read-only token**
+scoped to `ryansheppard/pollingjuegos` with Contents: Read. On the droplet,
+create `/var/lib/pollingjuegos/.git-credentials` owned by `pollingjuegos`, mode
+0600, with a single line `https://ryansheppard:TOKEN@github.com` (edit it
+interactively; **never paste the token into a command, URL argument, or repo
+file**). Keep the home directory private and tell Git to use this store:
 
 ```sh
-rsync -a --exclude .git --exclude .venv --exclude node_modules \
-  --exclude db.sqlite3 --exclude .env --exclude staticfiles \
-  --exclude terraform --exclude deploy --exclude mise.local.toml \
-  ./ root@IP:/opt/pollingjuegos/
-ssh root@IP 'chown -R pollingjuegos:pollingjuegos /opt/pollingjuegos && chmod 755 /opt/pollingjuegos'
+sudo chmod 700 /var/lib/pollingjuegos
+sudo install -o pollingjuegos -g pollingjuegos -m 0600 /dev/null /var/lib/pollingjuegos/.git-credentials
+sudoedit /var/lib/pollingjuegos/.git-credentials
+sudo -u pollingjuegos -H git config --global credential.helper 'store --file=/var/lib/pollingjuegos/.git-credentials'
+sudo -u pollingjuegos -H git clone https://github.com/ryansheppard/pollingjuegos.git /opt/pollingjuegos
+```
+
+Git's remote URL stays token-free. The token remains readable by the app user,
+so rotate it if the droplet is compromised; avoid broader account scopes. For a
+public repo, skip the credential steps. **Do not commit** `db.sqlite3`, `.env`,
+or the credential store; they must remain on the droplet. On your workstation,
+upload only the locally built frontend (replace `IP` with Terraform's output):
+
+```sh
+rsync -a frontend/dist/ root@IP:/opt/pollingjuegos/frontend/dist/
+ssh root@IP 'chown -R pollingjuegos:pollingjuegos /opt/pollingjuegos/frontend/dist'
 ```
 
 On the droplet, install Python/dependencies (the repo pins Python in
-`.python-version`) and copy the deployment files from `deploy/` on your
-workstation, e.g. `scp deploy/* root@IP:/tmp/`. Then run:
+`.python-version`) and install the deployment files from the checkout:
+
 
 ```sh
 sudo -u pollingjuegos -H sh -c 'cd /opt/pollingjuegos && /usr/local/bin/uv sync --locked --no-dev'
-sudo install -o root -g pollingjuegos -m 0640 /tmp/pollingjuegos.env.example /etc/pollingjuegos.env
+sudo install -o root -g pollingjuegos -m 0640 /opt/pollingjuegos/deploy/pollingjuegos.env.example /etc/pollingjuegos.env
 sudoedit /etc/pollingjuegos.env  # replace ALL placeholders; keep the secret key stable
-sudo install -m 0644 /tmp/Caddyfile /etc/caddy/Caddyfile
-sudo install -m 0644 /tmp/pollingjuegos.service /etc/systemd/system/pollingjuegos.service
-sudo install -m 0644 /tmp/pollingjuegos-backup.service /etc/systemd/system/pollingjuegos-backup.service
-sudo install -m 0644 /tmp/pollingjuegos-backup.timer /etc/systemd/system/pollingjuegos-backup.timer
-sudo install -m 0755 /tmp/backup-sqlite.sh /usr/local/bin/pollingjuegos-backup
+sudo install -m 0644 /opt/pollingjuegos/deploy/Caddyfile /etc/caddy/Caddyfile
+sudo install -m 0644 /opt/pollingjuegos/deploy/pollingjuegos.service /etc/systemd/system/pollingjuegos.service
+sudo install -m 0644 /opt/pollingjuegos/deploy/pollingjuegos-backup.service /etc/systemd/system/pollingjuegos-backup.service
+sudo install -m 0644 /opt/pollingjuegos/deploy/pollingjuegos-backup.timer /etc/systemd/system/pollingjuegos-backup.timer
+sudo install -m 0755 /opt/pollingjuegos/deploy/backup-sqlite.sh /usr/local/bin/pollingjuegos-backup
 sudo install -d /etc/systemd/journald.conf.d
-sudo install -m 0644 /tmp/journald.conf /etc/systemd/journald.conf.d/pollingjuegos.conf
+sudo install -m 0644 /opt/pollingjuegos/deploy/journald.conf /etc/systemd/journald.conf.d/pollingjuegos.conf
 sudo systemctl restart systemd-journald
 sudo systemctl daemon-reload
 sudo caddy validate --config /etc/caddy/Caddyfile
@@ -164,8 +178,13 @@ sudo systemctl enable --now pollingjuegos.service pollingjuegos-backup.timer
 sudo systemctl start pollingjuegos-backup.service  # verify the first backup
 ```
 
-After updates, build and rsync again, then run `uv sync --locked --no-dev`,
-`migrate`, `collectstatic`, and `systemctl restart pollingjuegos.service`.
+For updates, stop the service briefly, then pull with
+`sudo -u pollingjuegos -H git -C /opt/pollingjuegos pull --ff-only origin main`.
+Run `uv sync --locked --no-dev`, `migrate`, and `collectstatic` again, upload
+the rebuilt frontend `dist/` from your workstation, then start the service. Reinstall any changed
+systemd/Caddy/journald files as needed (and reload the relevant service).
+Never use `git clean -fdx` here: it would delete the database, venv, and built
+assets. If the token expires, replace the credential store entry before pulling.
 `journalctl -u pollingjuegos -u caddy` shows service errors. The journald drop-in
 caps persistent journal use at 100 MB (50 MB for runtime logs) and reserves
 free space; this limits **journal logs only**, not the database, backups, or
