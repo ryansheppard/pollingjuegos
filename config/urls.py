@@ -20,6 +20,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.urls import include, path
 
+from polls.api import api
+
 
 @login_required
 def home(_request):
@@ -29,5 +31,6 @@ def home(_request):
 urlpatterns = [
     path("", home, name="home"),
     path("admin/", admin.site.urls),
+    path("api/", api.urls),
     path("accounts/", include("allauth.urls")),
 ]

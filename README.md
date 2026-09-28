@@ -17,6 +17,19 @@ uv run manage.py test
 
 Each test run creates and removes its own uniquely named SQLite file in the system temporary directory; tests never use `db.sqlite3`. SQLite remains the default for local development and tests. The Worker entrypoint sets `USE_CLOUDFLARE_D1=true` and uses the `pollingjuegos` D1 binding via `django-cf` instead of the local SQLite file.
 
+## QB poll JSON API
+
+When `DJANGO_DEBUG=true`, interactive OpenAPI docs are at `/api/docs` (schema: `/api/openapi.json`); both routes are disabled otherwise. Weeks and the QB/team catalog are maintained in Django admin; only existing weeks accept ballots. All reads are JSON:
+
+- `GET /api/teams` — team IDs, names and abbreviations.
+- `GET /api/quarterbacks?q=chiefs&team_id=16&limit=50&offset=0` — search QB names, team names or abbreviations (case-insensitive substring); filters are optional, limit is 1–100.
+- `GET /api/weeks` — available seasons/weeks.
+- `GET /api/weeks/{season}/{week}/rankings` — public weekly top ten, total ballots, points and vote counts. Each ballot gives 15 points to #1 through 1 point to #15. Ties sort by number of votes, then QB name and ID; ranks are numbered 1–10.
+- `GET /api/weeks/{season}/{week}/ballot` — signed-in voter's ballot (empty entries if not submitted).
+- `PUT /api/weeks/{season}/{week}/ballot` — create or **replace** the signed-in voter's ballot. Body: `{"quarterback_ids": [/* exactly 15 distinct IDs ordered #1 to #15 */]}`. Invalid ballots return 400, missing weeks 404. Repeating a PUT does not create another ballot.
+
+Voting uses the existing allowlisted Discord login session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings are live (not frozen when a week ends); admins control which weeks exist, and ballots can currently be replaced at any time.
+
 ## Cloudflare Worker and D1
 
 The Worker entrypoint is `worker.py` and its configuration is `wrangler.jsonc`.
