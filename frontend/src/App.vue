@@ -217,7 +217,13 @@ onMounted(async () => {
     userId.value = me.id
     catalog.value = qbs
     weeks.value = weekList
-    if (weekList.length) selected.value = `${weekList[0]!.season}/${weekList[0]!.week}`
+    // Weeks arrive newest first; default to the oldest still accepting votes.
+    // If all weeks are closed, show the most recent results instead.
+    const openWeeks = weekList.filter((w) => !w.is_closed &&
+      (!w.closes_at || Date.parse(w.closes_at) > Date.now()))
+    const chronological = (a: Week, b: Week) => a.season - b.season || a.week - b.week
+    const initialWeek = openWeeks.sort(chronological)[0] ?? [...weekList].sort(chronological).at(-1)
+    if (initialWeek) selected.value = `${initialWeek.season}/${initialWeek.week}`
     else loading.value = false
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load poll data.'

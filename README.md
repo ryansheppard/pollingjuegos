@@ -35,7 +35,7 @@ Every API route (including rankings, catalog, CSRF and debug docs) requires the 
 
 The Vue app in `frontend/` requires sign-in to view rankings or build, reorder,
 and save a 15-quarterback ballot. Admins create weeks and set deadlines in Django.
-The frontend also restores unfinished drafts from this browser's local storage (scoped to the signed-in user and week), can copy the previous week's submitted ballot, shows top-ten movement and saved-ballot disagreements, and can share/download a PNG of the current results. Image export uses the browser's native share sheet when available; otherwise it downloads a PNG. Drafts are not synchronized across devices.
+The frontend defaults to the oldest week still accepting votes (or the newest closed week if all are closed), so pre-created future weeks won't take over the landing view. It also restores unfinished drafts from this browser's local storage (scoped to the signed-in user and week), can copy the previous week's submitted ballot, shows top-ten movement and saved-ballot disagreements, and can share/download a PNG of the current results. Image export uses the browser's native share sheet when available; otherwise it downloads a PNG. Drafts are not synchronized across devices.
 
 For local development, use two terminals:
 
