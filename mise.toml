@@ -1,7 +1,42 @@
 [tools]
+doctl = "1.175.0"
 pnpm = "12.7.0"
 terraform = "1.16.4"
 uv = "0.12.19"
+
+[tasks."build:backend"]
+description = "Build the production Django image with Podman"
+run = "podman build -f deploy/Dockerfile.backend -t pollingjuegos-backend:local ."
+
+[tasks."build:frontend"]
+description = "Build the production pnpm/Caddy image with Podman"
+run = "podman build -f deploy/Dockerfile.frontend -t pollingjuegos-frontend:local ."
+
+[tasks.build]
+description = "Build both production images"
+depends = ["build:backend", "build:frontend"]
+
+[tasks.push]
+description = "Push both locally built images to DigitalOcean Container Registry"
+run = '''
+set -eu
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
+  echo "Commit changes before pushing a release tagged with HEAD" >&2
+  exit 1
+fi
+mise run -j 1 build
+release=$(git rev-parse --short=12 HEAD)
+registry=registry.digitalocean.com/pollingjuegos
+authfile=$(mktemp)
+trap 'rm -f "$authfile"' EXIT
+chmod 600 "$authfile"
+doctl registry docker-config pollingjuegos --read-write --expiry-seconds 3600 > "$authfile"
+podman tag pollingjuegos-backend:local "$registry/backend:$release"
+podman tag pollingjuegos-frontend:local "$registry/frontend:$release"
+podman push --authfile "$authfile" "$registry/backend:$release"
+podman push --authfile "$authfile" "$registry/frontend:$release"
+echo "Pushed backend and frontend as $release"
+'''
 
 [tasks.test]
 run = "uv run manage.py test"

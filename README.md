@@ -47,14 +47,14 @@ Open **http://localhost:5173** (not port 8000). Vite proxies `/api/` and
 login, configure the OAuth redirect URL as
 `http://localhost:5173/accounts/discord/login/callback/`.
 
-For production, build with `cd frontend && pnpm install --frozen-lockfile && pnpm build`.
-Serve `frontend/dist/` at `https://pj.ryansheppard.xyz/` and proxy `/api/`,
+For the legacy host-based deployment below, build with
+`cd frontend && pnpm install --frozen-lockfile && pnpm build`. Serve `frontend/dist/` at `https://pj.ryansheppard.xyz/` and proxy `/api/`,
 `/accounts/`, `/admin/`, and `/static/` to Django on the **same host**. For
-example, with Caddy on the droplet (adjust the absolute build path):
+example, with Caddy on the droplet:
 
 ```caddyfile
 pj.ryansheppard.xyz {
-    @django path /api/* /accounts/* /admin/* /static/*
+    @django path /api /api/* /accounts /accounts/* /admin /admin/* /static /static/*
     handle @django {
         reverse_proxy 127.0.0.1:8000
     }
@@ -75,7 +75,126 @@ redirect URL to
 No cross-origin CORS or CSRF exceptions are required for this setup. Django's
 `/` login placeholder is not used when the reverse proxy serves the frontend.
 
-## Single-droplet deployment
+## Container deployment (recommended)
+
+Build and push on your development machine; the droplet only pulls images. The
+frontend builder uses pnpm (Node is confined to the build stage); Django static
+files are collected in the backend image. From the repository root:
+
+```sh
+mise run build            # build:backend and build:frontend are also available
+mise run push             # rebuild both and push using doctl + Podman
+RELEASE=$(git rev-parse --short=12 HEAD)
+```
+
+`push` requires a clean committed checkout and an authenticated `doctl`
+(`doctl auth init` on your machine). It obtains a short-lived, read-write
+registry credential via `doctl registry docker-config`, passes it to Podman
+through a temporary auth file, then deletes that file. It tags *both* images
+with the first 12 characters of HEAD and prints the tag. It does not push
+`latest` or reuse tags for uncommitted builds. Run `mise run build` alone for
+local image checks; `mise run push` also builds, so you needn't run both.
+Use the same `RELEASE` value on the droplet below.
+The registry is managed by Terraform (`terraform -chdir=terraform apply`, then
+`terraform -chdir=terraform output registry_endpoint`). It is account-wide and
+uses the storage-limited Starter tier; prune old releases after verifying
+rollback options. Keep registry credentials out of images and Terraform state.
+
+Terraform also provisions an Ubuntu droplet and firewall; see the legacy section
+below for the Tailscale/SSH bootstrap, Cloudflare DNS-only A record and Discord
+callback precautions, which still apply. Install Docker Engine and the Compose
+plugin on the droplet using the official Ubuntu instructions (not pnpm, uv,
+Podman, or a repository checkout). Docker/Compose and the two images may exceed
+the 512 MB RAM / 10 GB disk provisioned by Terraform; check capacity and resize
+before migrating. Do not run the existing host Caddy and container Caddy at the
+same time: both bind ports 80/443.
+
+One-time droplet setup, from your local checkout (substitute your Tailscale host):
+
+```sh
+scp deploy/compose.yaml deploy/backup-sqlite.sh \
+  deploy/pollingjuegos.env.example deploy/pollingjuegos-backup.service \
+  deploy/pollingjuegos-backup.timer root@TAILSCALE_HOST:/tmp/
+ssh root@TAILSCALE_HOST
+# On the droplet:
+install -d -m 0755 /opt/pollingjuegos
+install -m 0644 /tmp/compose.yaml /opt/pollingjuegos/compose.yaml
+install -d -m 0700 /var/lib/pollingjuegos/data
+# Docker runs the backend as UID 65532; SQLite needs directory write access.
+chown -R 65532:65532 /var/lib/pollingjuegos/data
+# Only on a new droplet; preserve the existing env file on upgrades:
+test -e /etc/pollingjuegos.env || install -m 0600 /tmp/pollingjuegos.env.example /etc/pollingjuegos.env
+sudoedit /etc/pollingjuegos.env  # replace ALL placeholders on a new droplet
+```
+
+If `/etc/pollingjuegos.env` already exists, **keep it**, especially its stable
+`DJANGO_SECRET_KEY`; otherwise copy `deploy/pollingjuegos.env.example` securely
+from your local machine and edit `/etc/pollingjuegos.env` to set all secrets,
+`DJANGO_ALLOWED_HOSTS=pj.ryansheppard.xyz`, and `DJANGO_TRUST_PROXY=true`.
+Never start with placeholder secrets. The file contains Compose `env_file`
+entries, not shell commands; restrict it to root (mode 0600). Configure a
+registry **read** credential with `sudo docker login registry.digitalocean.com`
+on the droplet; unlike local Podman, root's Docker needs its own login. Use a
+read-only registry credential (not the write credential used for pushing).
+
+For an existing systemd deployment, stop the old service before copying the DB;
+keep the original DB untouched for rollback. Use SQLite's online backup rather
+than `cp`, particularly if the old app is still running:
+
+```sh
+sudo systemctl stop pollingjuegos-backup.timer pollingjuegos.service caddy.service
+sudo sqlite3 /opt/pollingjuegos/db.sqlite3 \
+  ".backup '/var/lib/pollingjuegos/data/db.sqlite3'"
+sudo chown -R 65532:65532 /var/lib/pollingjuegos/data
+```
+
+On a fresh install, skip the copy. On the droplet, set `RELEASE` to the tag
+pushed above, then pull and migrate **before** starting the stack:
+
+```sh
+RELEASE=YOUR_PUSHED_TAG
+sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml pull
+sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml \
+  run --rm backend /app/.venv/bin/python manage.py migrate --noinput
+sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml up -d
+sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml ps
+```
+
+The Compose file keeps Gunicorn private, mounts the **directory** holding
+SQLite (`/var/lib/pollingjuegos/data`), and persists Caddy's `/data` and
+`/config` for HTTPS certificates. Never mount only the SQLite file. For each
+update, push *both* images with a new tag, repeat pull → migrate → up, and
+check logs with
+`sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml logs`.
+Migrations may not be reversible: back up and test restores before updating;
+rolling images back does not roll the database back. Static files require no
+host `collectstatic` step. Set up the existing backup timer against the **new** DB path after migration.
+Install the uploaded backup units/script, and override the service's user and
+source path (UID 65532 owns the DB, so the old `pollingjuegos` host user cannot
+read it):
+
+```sh
+sudo install -m 0755 /tmp/backup-sqlite.sh /usr/local/bin/pollingjuegos-backup
+sudo install -m 0644 /tmp/pollingjuegos-backup.service /etc/systemd/system/
+sudo install -m 0644 /tmp/pollingjuegos-backup.timer /etc/systemd/system/
+sudo install -d -m 0700 /var/backups/pollingjuegos
+sudo systemctl edit pollingjuegos-backup.service
+# In the editor, enter:
+# [Service]
+# User=root
+# Group=root
+# Environment=POLLINGJUEGOS_DB_PATH=/var/lib/pollingjuegos/data/db.sqlite3
+sudo systemctl daemon-reload
+sudo systemctl enable --now pollingjuegos-backup.timer
+sudo systemctl start pollingjuegos-backup.service
+sudo ls -lh /var/backups/pollingjuegos/
+```
+
+Copy backups offsite and test restores; neither a registry nor a Docker volume
+is a backup. Disable the timer if it fails until the DB path and permissions
+are corrected—do not silently back up the old database.
+
+## Legacy systemd/rsync single-droplet deployment
 
 `terraform/` provisions a NYC3 Ubuntu 24.04 droplet (`s-1vcpu-512mb-10gb`),
 using the **existing DigitalOcean SSH key named `arch`**, and a firewall allowing

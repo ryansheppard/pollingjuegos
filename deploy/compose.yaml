@@ -1,0 +1,31 @@
+---
+# Copy this file to /opt/pollingjuegos/compose.yaml. Set RELEASE to a pushed
+# image tag before running Compose; never use `latest` for a production release.
+services:
+  backend:
+    image: >-
+      registry.digitalocean.com/pollingjuegos/backend:${RELEASE:?Set RELEASE}
+    env_file: /etc/pollingjuegos.env
+    environment:
+      DJANGO_DB_PATH: /data/db.sqlite3
+    volumes:
+      - /var/lib/pollingjuegos/data:/data
+    restart: unless-stopped
+    # No public port: frontend reaches Gunicorn on the private Compose network.
+
+  frontend:
+    image: >-
+      registry.digitalocean.com/pollingjuegos/frontend:${RELEASE:?Set RELEASE}
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

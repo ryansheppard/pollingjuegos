@@ -6,7 +6,7 @@ backup_dir=/var/backups/pollingjuegos
 backup="$backup_dir/db-$(date -u +%Y%m%dT%H%M%SZ).sqlite3"
 mkdir -p "$backup_dir"
 trap 'rm -f "$backup"' EXIT
-sqlite3 /opt/pollingjuegos/db.sqlite3 ".backup '$backup'"
+sqlite3 "${POLLINGJUEGOS_DB_PATH:-/opt/pollingjuegos/db.sqlite3}" ".backup '$backup'"
 # A zero-length file indicates a failed/incomplete backup.
 test -s "$backup"
 trap - EXIT

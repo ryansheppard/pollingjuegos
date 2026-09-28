@@ -27,6 +27,12 @@ resource "digitalocean_droplet" "pollingjuegos" {
   tags       = ["pollingjuegos"]
 }
 
+# DigitalOcean registry names are account-wide; the Starter tier is free but storage-limited.
+resource "digitalocean_container_registry" "pollingjuegos" {
+  name                   = "pollingjuegos"
+  subscription_tier_slug = "starter"
+}
+
 resource "digitalocean_firewall" "pollingjuegos" {
   name        = "pollingjuegos"
   droplet_ids = [digitalocean_droplet.pollingjuegos.id]
@@ -69,4 +75,8 @@ variable "enable_droplet_backups" {
 
 output "ipv4_address" {
   value = digitalocean_droplet.pollingjuegos.ipv4_address
+}
+
+output "registry_endpoint" {
+  value = digitalocean_container_registry.pollingjuegos.endpoint
 }

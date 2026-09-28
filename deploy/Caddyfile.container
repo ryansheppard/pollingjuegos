@@ -1,10 +1,10 @@
 pj.ryansheppard.xyz {
     @django path /api /api/* /accounts /accounts/* /admin /admin/* /static /static/*
     handle @django {
-        reverse_proxy 127.0.0.1:8000
+        reverse_proxy backend:8000
     }
     handle {
-        root * /opt/pollingjuegos/frontend/dist
+        root * /srv
         try_files {path} /index.html
         file_server
     }
