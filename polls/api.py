@@ -1,10 +1,13 @@
 """JSON API for a separate ballot UI. Weeks and QB rosters are managed by admins."""
 
+from datetime import datetime
+
 from django.conf import settings
 from django.db import transaction
 from django.db.models import Count, F, Q, Sum
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from ninja import NinjaAPI, Schema
 from ninja.security import django_auth
 
@@ -34,6 +37,8 @@ class WeekOut(Schema):
     id: int
     season: int
     week: int
+    closes_at: datetime | None
+    is_closed: bool
 
 
 class BallotIn(Schema):
@@ -56,6 +61,7 @@ class RankingEntry(Schema):
     rank: int
     points: int
     votes: int
+    previous_rank: int | None
     quarterback: QuarterbackOut
 
 
@@ -90,6 +96,11 @@ def qb_out(qb):
 def csrf_token(request):
     """Issue the CSRF cookie/token for a browser client before ballot writes."""
     return {"csrf_token": get_token(request)}
+
+
+@api.get("/me", response=dict[str, int])
+def current_user(request):
+    return {"id": request.user.pk}
 
 
 @api.get("/teams", response=list[TeamOut])
@@ -153,7 +164,7 @@ def my_ballot(request, season: int, week: int):
     response={200: BallotOut, 400: ErrorOut},
 )
 def submit_ballot(request, season: int, week: int, payload: BallotIn):
-    """Create or replace the caller's complete ballot atomically (never append votes)."""
+    """Create or replace the caller's complete ballot atomically."""
     poll_week = get_week(season, week)
     ids = payload.quarterback_ids
     if len(ids) != 15 or len(set(ids)) != 15:
@@ -161,6 +172,9 @@ def submit_ballot(request, season: int, week: int, payload: BallotIn):
     if Quarterback.objects.filter(pk__in=ids).count() != 15:
         return 400, {"detail": "One or more quarterbacks do not exist"}
     with transaction.atomic():
+        poll_week.refresh_from_db()
+        if poll_week.closes_at is not None and timezone.now() >= poll_week.closes_at:
+            return 400, {"detail": "Voting for this week has closed"}
         ballot, _ = Ballot.objects.get_or_create(
             poll_week=poll_week, voter=request.user
         )
@@ -174,16 +188,33 @@ def submit_ballot(request, season: int, week: int, payload: BallotIn):
     return ballot_out(poll_week, ballot)
 
 
-@api.get("/weeks/{season}/{week}/rankings", response=RankingsOut)
-def rankings(request, season: int, week: int):
-    """AP-style 15..1 points; top ten by points, with deterministic tie order."""
-    get_token(request)
-    poll_week = get_week(season, week)
-    scores = list(
+def top_scores(poll_week):
+    return list(
         Vote.objects.filter(ballot__poll_week=poll_week)
         .values("quarterback_id")
         .annotate(points=Sum(16 - F("rank")), votes=Count("id"))
         .order_by("-points", "-votes", "quarterback__name", "quarterback_id")[:10]
+    )
+
+
+@api.get("/weeks/{season}/{week}/rankings", response=RankingsOut)
+def rankings(request, season: int, week: int):
+    """AP-style 15..1 points; movement compares with the previous existing week."""
+    get_token(request)
+    poll_week = get_week(season, week)
+    scores = top_scores(poll_week)
+    previous = (
+        PollWeek.objects.filter(Q(season__lt=season) | Q(season=season, week__lt=week))
+        .order_by("-season", "-week")
+        .first()
+    )
+    previous_ranks = (
+        {
+            row["quarterback_id"]: rank
+            for rank, row in enumerate(top_scores(previous), 1)
+        }
+        if previous and Ballot.objects.filter(poll_week=previous).exists()
+        else {}
     )
     qbs = Quarterback.objects.select_related("team").in_bulk(
         row["quarterback_id"] for row in scores
@@ -197,6 +228,7 @@ def rankings(request, season: int, week: int):
                 "rank": rank,
                 "points": row["points"],
                 "votes": row["votes"],
+                "previous_rank": previous_ranks.get(row["quarterback_id"]),
                 "quarterback": qb_out(qbs[row["quarterback_id"]]),
             }
             for rank, row in enumerate(scores, start=1)

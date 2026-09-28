@@ -25,7 +25,7 @@ class QuarterbackAdmin(admin.ModelAdmin):
 
 @admin.register(PollWeek)
 class PollWeekAdmin(admin.ModelAdmin):
-    list_display = ("season", "week")
+    list_display = ("season", "week", "closes_at", "is_closed")
 
 
 class VoteInline(admin.TabularInline):

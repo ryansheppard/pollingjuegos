@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 
 
 class ApprovedDiscordUser(models.Model):
@@ -44,6 +45,15 @@ class PollWeek(models.Model):
     objects = models.Manager()
     season = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     week = models.PositiveIntegerField(validators=[MinValueValidator(1)])
+    closes_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Voting closes at this time (UTC in the API). Leave blank for no deadline.",
+    )
+
+    @property
+    def is_closed(self):
+        return self.closes_at is not None and timezone.now() >= self.closes_at
 
     class Meta:
         constraints = [

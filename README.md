@@ -23,17 +23,19 @@ When `DJANGO_DEBUG=true`, interactive OpenAPI docs are at `/api/docs` (schema: `
 
 - `GET /api/teams` — team IDs, names and abbreviations.
 - `GET /api/quarterbacks?q=chiefs&team_id=16&limit=50&offset=0` — search QB names, team names or abbreviations (case-insensitive substring); filters are optional, limit is 1–100.
-- `GET /api/weeks` — available seasons/weeks.
-- `GET /api/weeks/{season}/{week}/rankings` — weekly top ten, total ballots, points and vote counts. Each ballot gives 15 points to #1 through 1 point to #15. Ties sort by number of votes, then QB name and ID; ranks are numbered 1–10.
+- `GET /api/me` — signed-in user ID (used to keep local drafts separate between accounts).
+- `GET /api/weeks` — available seasons/weeks, optional `closes_at` timestamp and `is_closed` flag.
+- `GET /api/weeks/{season}/{week}/rankings` — weekly top ten, total ballots, points, vote counts and `previous_rank` (top-ten rank in the previous existing poll week, or null). Each ballot gives 15 points to #1 through 1 point to #15. Ties sort by number of votes, then QB name and ID; ranks are numbered 1–10.
 - `GET /api/weeks/{season}/{week}/ballot` — signed-in voter's ballot (empty entries if not submitted).
-- `PUT /api/weeks/{season}/{week}/ballot` — create or **replace** the signed-in voter's ballot. Body: `{"quarterback_ids": [/* exactly 15 distinct IDs ordered #1 to #15 */]}`. Invalid ballots return 400, missing weeks 404. Repeating a PUT does not create another ballot.
+- `PUT /api/weeks/{season}/{week}/ballot` — create or **replace** the signed-in voter's ballot before the optional deadline. Body: `{"quarterback_ids": [/* exactly 15 distinct IDs ordered #1 to #15 */]}`. Invalid or late ballots return 400, missing weeks 404. Repeating a PUT does not create another ballot.
 
-Every API route (including rankings, catalog, CSRF and debug docs) requires the existing allowlisted Discord login session; unauthenticated requests return 401. Voting uses that session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings are live (not frozen when a week ends); admins control which weeks exist, and ballots can currently be replaced at any time.
+Every API route (including rankings, catalog, CSRF and debug docs) requires the existing allowlisted Discord login session; unauthenticated requests return 401. Voting uses that session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings remain readable after voting closes. Admins create weeks and optionally set `closes_at` in Django admin; leave it blank for open-ended voting. Ordinary API voters cannot create or change ballots after the deadline. Rankings are computed from ballots on request (admin corrections can still change them); no immutable snapshot is stored.
 
 ## PollingJuegos frontend
 
 The Vue app in `frontend/` requires sign-in to view rankings or build, reorder,
-and save a 15-quarterback ballot. Admins create weeks in Django.
+and save a 15-quarterback ballot. Admins create weeks and set deadlines in Django.
+The frontend also restores unfinished drafts from this browser's local storage (scoped to the signed-in user and week), can copy the previous week's submitted ballot, shows top-ten movement and saved-ballot disagreements, and can share/download a PNG of the current results. Image export uses the browser's native share sheet when available; otherwise it downloads a PNG. Drafts are not synchronized across devices.
 
 For local development, use two terminals:
 

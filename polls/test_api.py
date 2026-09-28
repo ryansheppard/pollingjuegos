@@ -1,8 +1,10 @@
 import json
+from datetime import timedelta
 
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
+from django.utils import timezone
 
 from .models import ApprovedDiscordUser, Ballot, PollWeek, Quarterback, Vote
 
@@ -116,6 +118,44 @@ class PollAPITests(TestCase):
             [row["rank"] for row in result["rankings"]], list(range(1, 11))
         )
 
+    def test_deadline_closes_writes_but_keeps_reads_and_previous_ballot(self):
+        ids = [qb.id for qb in self.qbs[:15]]
+        self.week.closes_at = timezone.now() + timedelta(hours=1)
+        self.week.save()
+        self.assertEqual(self.put_ballot(ids).status_code, 200)
+        weeks = self.client.get("/api/weeks").json()
+        self.assertFalse(weeks[0]["is_closed"])
+        self.assertIsNotNone(weeks[0]["closes_at"])
+        self.week.closes_at = timezone.now() - timedelta(seconds=1)
+        self.week.save()
+        self.assertTrue(self.client.get("/api/weeks").json()[0]["is_closed"])
+        response = self.put_ballot(ids[1:] + [self.qbs[15].id])
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("closed", response.json()["detail"])
+        ballot = self.client.get("/api/weeks/2026/1/ballot").json()
+        self.assertEqual(ballot["entries"][0]["quarterback"]["id"], ids[0])
+        result = self.client.get("/api/weeks/2026/1/rankings").json()
+        self.assertEqual(result["ballots"], 1)
+        self.client.force_login(self.other, backend="config.auth.DiscordOnlyBackend")
+        self.assertEqual(self.put_ballot(ids).status_code, 400)
+        self.assertEqual(Ballot.objects.count(), 1)
+
+    def test_movement_uses_previous_existing_week_including_prior_season(self):
+        previous = PollWeek.objects.create(season=2025, week=18)
+        ids = [qb.id for qb in self.qbs[:15]]
+        self.assertEqual(self.put_ballot(ids, 2025, 18).status_code, 200)
+        self.assertEqual(self.put_ballot(ids[1:] + [self.qbs[15].id]).status_code, 200)
+        result = self.client.get("/api/weeks/2026/1/rankings").json()["rankings"]
+        self.assertEqual(result[0]["quarterback"]["id"], ids[1])
+        self.assertEqual(result[0]["previous_rank"], 2)
+        self.assertEqual(result[9]["previous_rank"], None)  # Previously outside top 10.
+        previous.delete()
+        self.assertIsNone(
+            self.client.get("/api/weeks/2026/1/rankings").json()["rankings"][0][
+                "previous_rank"
+            ]
+        )
+
     def test_auth_and_csrf(self):
         ids = [qb.id for qb in self.qbs[:15]]
         url = "/api/weeks/2026/1/ballot"
@@ -129,6 +169,7 @@ class PollAPITests(TestCase):
         self.assertEqual(self.put_ballot(ids).status_code, 401)
         for path in (
             "/api/csrf",
+            "/api/me",
             "/api/teams",
             "/api/quarterbacks",
             "/api/weeks",
@@ -138,3 +179,4 @@ class PollAPITests(TestCase):
             self.assertEqual(self.client.get(path).status_code, 401, path)
         self.client.force_login(self.user, backend="config.auth.DiscordOnlyBackend")
         self.assertEqual(self.client.get("/api/weeks/2026/1/rankings").status_code, 200)
+        self.assertEqual(self.client.get("/api/me").json()["id"], self.user.id)

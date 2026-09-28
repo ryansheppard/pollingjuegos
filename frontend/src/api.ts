@@ -7,13 +7,15 @@ export interface Quarterback {
 export interface Week {
   season: number
   week: number
+  closes_at: string | null
+  is_closed: boolean
 }
 
 export interface Rankings {
   season: number
   week: number
   ballots: number
-  rankings: { rank: number; points: number; votes: number; quarterback: Quarterback }[]
+  rankings: { rank: number; points: number; votes: number; previous_rank: number | null; quarterback: Quarterback }[]
 }
 
 export interface Ballot {
