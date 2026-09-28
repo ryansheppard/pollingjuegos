@@ -30,6 +30,10 @@ export class ApiError extends Error {
 
 export async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, { credentials: 'same-origin', ...options })
+  if (response.status === 401) {
+    window.location.assign(`/accounts/login/?next=${encodeURIComponent(window.location.pathname + window.location.search)}`)
+    throw new ApiError('Sign in required', 401)
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     throw new ApiError(body?.detail ?? `Request failed (${response.status})`, response.status)

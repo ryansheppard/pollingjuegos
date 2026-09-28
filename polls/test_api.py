@@ -42,6 +42,18 @@ class PollAPITests(TestCase):
         )
         self.assertEqual(self.client.get("/api/docs").status_code, expected_status)
 
+    def test_debug_docs_require_login(self):
+        from django.conf import settings
+
+        self.client.logout()
+        for path in ("/api/openapi.json", "/api/docs"):
+            self.assertEqual(self.client.get(path).status_code, 401)
+        self.client.force_login(self.user, backend="config.auth.DiscordOnlyBackend")
+        for path in ("/api/openapi.json", "/api/docs"):
+            self.assertEqual(
+                self.client.get(path).status_code, 200 if settings.DEBUG else 404
+            )
+
     def test_catalog_search_and_weeks(self):
         self.assertEqual(self.client.get("/api/weeks").json()[0]["week"], 1)
         qb = Quarterback.objects.get(name="Patrick Mahomes")
@@ -114,7 +126,15 @@ class PollAPITests(TestCase):
         self.assertEqual(Ballot.objects.count(), 0)
         self.client.logout()
         self.assertEqual(self.client.get(url).status_code, 401)
-        self.assertEqual(
-            self.put_ballot(ids).status_code, 403
-        )  # logged-out CSRF cookie cleared
+        self.assertEqual(self.put_ballot(ids).status_code, 401)
+        for path in (
+            "/api/csrf",
+            "/api/teams",
+            "/api/quarterbacks",
+            "/api/weeks",
+            "/api/weeks/2026/1/rankings",
+            "/api/weeks/2026/1/ballot",
+        ):
+            self.assertEqual(self.client.get(path).status_code, 401, path)
+        self.client.force_login(self.user, backend="config.auth.DiscordOnlyBackend")
         self.assertEqual(self.client.get("/api/weeks/2026/1/rankings").status_code, 200)

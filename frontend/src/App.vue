@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ApiError, loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type Rankings, type Week } from './api'
+import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type Rankings, type Week } from './api'
 
 const weeks = ref<Week[]>([])
 const selected = ref('')
@@ -8,7 +8,6 @@ const catalog = ref<Quarterback[]>([])
 const ballot = ref<Quarterback[]>([])
 const rankings = ref<Rankings | null>(null)
 const search = ref('')
-const signedIn = ref(false)
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
@@ -42,7 +41,6 @@ async function loadWeek() {
   const id = ++loadId
   rankings.value = null
   ballot.value = []
-  signedIn.value = false
   error.value = ''
   message.value = ''
   if (!current) return
@@ -51,15 +49,11 @@ async function loadWeek() {
     const base = `/weeks/${current.season}/${current.week}`
     const [results, mine] = await Promise.all([
       request<Rankings>(`${base}/rankings`),
-      request<Ballot>(`${base}/ballot`).catch((err: unknown) => {
-        if (err instanceof ApiError && err.status === 401) return null
-        throw err
-      }),
+      request<Ballot>(`${base}/ballot`),
     ])
     if (id !== loadId) return
     rankings.value = results
-    signedIn.value = mine !== null
-    ballot.value = mine?.entries.map((entry) => entry.quarterback) ?? []
+    ballot.value = mine.entries.map((entry) => entry.quarterback)
   } catch (err) {
     if (id === loadId) error.value = err instanceof Error ? err.message : 'Could not load this week.'
   } finally {
@@ -109,7 +103,7 @@ onMounted(async () => {
   <main>
     <header>
       <h1>PollingJuegos</h1>
-      <a v-if="!signedIn" href="/accounts/discord/login/">Sign in with Discord to vote</a>
+      <a href="/accounts/logout/">Sign out</a>
     </header>
     <label for="week">Week: </label>
     <select id="week" v-model="selected" :disabled="loading || saving || !weeks.length">
@@ -134,26 +128,23 @@ onMounted(async () => {
       </section>
       <section>
         <h2>Your ballot ({{ ballot.length }}/15)</h2>
-        <p v-if="!signedIn" class="muted">Sign in to rank quarterbacks.</p>
-        <template v-else>
-          <ol>
-            <li v-for="(qb, index) in ballot" :key="qb.id">
-              <div class="row">
-                <span>{{ label(qb) }}</span>
-                <div class="controls">
-                  <button type="button" :disabled="saving || index === 0" :aria-label="`Move ${qb.name} up`" @click="move(index, -1)">↑</button>
-                  <button type="button" :disabled="saving || index === ballot.length - 1" :aria-label="`Move ${qb.name} down`" @click="move(index, 1)">↓</button>
-                  <button type="button" :disabled="saving" :aria-label="`Remove ${qb.name}`" @click="ballot.splice(index, 1); message = ''">Remove</button>
-                </div>
+        <ol>
+          <li v-for="(qb, index) in ballot" :key="qb.id">
+            <div class="row">
+              <span>{{ label(qb) }}</span>
+              <div class="controls">
+                <button type="button" :disabled="saving || index === 0" :aria-label="`Move ${qb.name} up`" @click="move(index, -1)">↑</button>
+                <button type="button" :disabled="saving || index === ballot.length - 1" :aria-label="`Move ${qb.name} down`" @click="move(index, 1)">↓</button>
+                <button type="button" :disabled="saving" :aria-label="`Remove ${qb.name}`" @click="ballot.splice(index, 1); message = ''">Remove</button>
               </div>
-            </li>
-          </ol>
-          <button type="button" :disabled="ballot.length !== 15 || saving" @click="submit">
-            {{ saving ? 'Saving…' : 'Save ballot' }}
-          </button>
-        </template>
+            </div>
+          </li>
+        </ol>
+        <button type="button" :disabled="ballot.length !== 15 || saving" @click="submit">
+          {{ saving ? 'Saving…' : 'Save ballot' }}
+        </button>
       </section>
-      <section v-if="signedIn">
+      <section>
         <h2>Add quarterbacks</h2>
         <label for="search">Search by name or team</label>
         <input id="search" v-model="search" type="search" placeholder="Search quarterbacks" />

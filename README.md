@@ -24,16 +24,16 @@ When `DJANGO_DEBUG=true`, interactive OpenAPI docs are at `/api/docs` (schema: `
 - `GET /api/teams` — team IDs, names and abbreviations.
 - `GET /api/quarterbacks?q=chiefs&team_id=16&limit=50&offset=0` — search QB names, team names or abbreviations (case-insensitive substring); filters are optional, limit is 1–100.
 - `GET /api/weeks` — available seasons/weeks.
-- `GET /api/weeks/{season}/{week}/rankings` — public weekly top ten, total ballots, points and vote counts. Each ballot gives 15 points to #1 through 1 point to #15. Ties sort by number of votes, then QB name and ID; ranks are numbered 1–10.
+- `GET /api/weeks/{season}/{week}/rankings` — weekly top ten, total ballots, points and vote counts. Each ballot gives 15 points to #1 through 1 point to #15. Ties sort by number of votes, then QB name and ID; ranks are numbered 1–10.
 - `GET /api/weeks/{season}/{week}/ballot` — signed-in voter's ballot (empty entries if not submitted).
 - `PUT /api/weeks/{season}/{week}/ballot` — create or **replace** the signed-in voter's ballot. Body: `{"quarterback_ids": [/* exactly 15 distinct IDs ordered #1 to #15 */]}`. Invalid ballots return 400, missing weeks 404. Repeating a PUT does not create another ballot.
 
-Voting uses the existing allowlisted Discord login session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings are live (not frozen when a week ends); admins control which weeks exist, and ballots can currently be replaced at any time.
+Every API route (including rankings, catalog, CSRF and debug docs) requires the existing allowlisted Discord login session; unauthenticated requests return 401. Voting uses that session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings are live (not frozen when a week ends); admins control which weeks exist, and ballots can currently be replaced at any time.
 
 ## PollingJuegos frontend
 
-The minimal Vue app in `frontend/` shows weekly rankings and lets signed-in voters
-build, reorder, and save a 15-quarterback ballot. Admins create weeks in Django.
+The Vue app in `frontend/` requires sign-in to view rankings or build, reorder,
+and save a 15-quarterback ballot. Admins create weeks in Django.
 
 For local development, use two terminals:
 
@@ -43,7 +43,9 @@ cd frontend && pnpm install && pnpm dev
 ```
 
 Open **http://localhost:5173** (not port 8000). Vite proxies `/api/` and
-`/accounts/` to Django, keeping cookies and CSRF same-origin. For local Discord
+`/accounts/` to Django, keeping cookies and CSRF same-origin. The development
+server still serves the app shell publicly, but it redirects anonymous visitors
+to login and no poll data is available without a session. For local Discord
 login, configure the OAuth redirect URL as
 `http://localhost:5173/accounts/discord/login/callback/`.
 
@@ -59,6 +61,9 @@ pj.ryansheppard.xyz {
         reverse_proxy 127.0.0.1:8000
     }
     handle {
+        forward_auth 127.0.0.1:8000 {
+            uri /auth/frontend/
+        }
         root * /opt/pollingjuegos/frontend/dist
         try_files {path} /index.html
         file_server
@@ -72,8 +77,10 @@ Bind Django only to loopback, set `DJANGO_ALLOWED_HOSTS=pj.ryansheppard.xyz`,
 never expose that Django port directly to the internet. Set the Discord OAuth
 redirect URL to
 `https://pj.ryansheppard.xyz/accounts/discord/login/callback/`.
-No cross-origin CORS or CSRF exceptions are required for this setup. Django's
-`/` login placeholder is not used when the reverse proxy serves the frontend.
+No cross-origin CORS or CSRF exceptions are required for this setup. Caddy
+checks the Django session before serving any frontend files; anonymous visitors
+are sent to Discord login. Django's `/` login placeholder is not used when the
+reverse proxy serves the frontend.
 
 ## Container deployment (recommended)
 

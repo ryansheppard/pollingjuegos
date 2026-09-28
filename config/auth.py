@@ -1,7 +1,20 @@
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.backends import ModelBackend
+from django.http import JsonResponse
 
 from polls.models import ApprovedDiscordUser
+
+
+class ApiLoginRequiredMiddleware:
+    """Guard every API path, including Ninja's debug schema and docs views."""
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith("/api/") and not request.user.is_authenticated:
+            return JsonResponse({"detail": "Unauthorized"}, status=401)
+        return self.get_response(request)
 
 
 class DiscordOnlyBackend(ModelBackend):

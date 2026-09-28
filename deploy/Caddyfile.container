@@ -4,6 +4,9 @@ pj.ryansheppard.xyz {
         reverse_proxy backend:8000
     }
     handle {
+        forward_auth backend:8000 {
+            uri /auth/frontend/
+        }
         root * /srv
         try_files {path} /index.html
         file_server

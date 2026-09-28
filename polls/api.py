@@ -12,6 +12,7 @@ from .models import Ballot, PollWeek, Quarterback, Team, Vote
 
 api = NinjaAPI(
     title="QB Poll API",
+    auth=django_auth,
     openapi_url="/openapi.json" if settings.DEBUG else None,
     docs_url="/docs" if settings.DEBUG else None,
 )
@@ -140,7 +141,7 @@ def ballot_out(week, ballot):
     return {"season": week.season, "week": week.week, "entries": entries}
 
 
-@api.get("/weeks/{season}/{week}/ballot", auth=django_auth, response=BallotOut)
+@api.get("/weeks/{season}/{week}/ballot", response=BallotOut)
 def my_ballot(request, season: int, week: int):
     poll_week = get_week(season, week)
     ballot = Ballot.objects.filter(poll_week=poll_week, voter=request.user).first()
@@ -149,7 +150,6 @@ def my_ballot(request, season: int, week: int):
 
 @api.put(
     "/weeks/{season}/{week}/ballot",
-    auth=django_auth,
     response={200: BallotOut, 400: ErrorOut},
 )
 def submit_ballot(request, season: int, week: int, payload: BallotIn):

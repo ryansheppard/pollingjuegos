@@ -15,8 +15,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
+from django.conf import settings
 from django.contrib import admin
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.views import redirect_to_login
 from django.http import HttpResponse
 from django.urls import include, path
 
@@ -28,8 +30,16 @@ def home(_request):
     return HttpResponse(b"Signed in via Discord.")
 
 
+def frontend_access(request):
+    """Caddy checks the session before serving any frontend file."""
+    if not request.user.is_authenticated:
+        return redirect_to_login("/", login_url=settings.LOGIN_URL)
+    return HttpResponse(status=204)
+
+
 urlpatterns = [
     path("", home, name="home"),
+    path("auth/frontend/", frontend_access, name="frontend_access"),
     path("admin/", admin.site.urls),
     path("api/", api.urls),
     path("accounts/", include("allauth.urls")),

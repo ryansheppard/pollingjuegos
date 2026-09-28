@@ -109,6 +109,10 @@ class DiscordLoginTests(TestCase):
 
     def test_revoked_user_loses_existing_session(self):
         self.assertEqual(self.client.get("/").status_code, 302)
+        response = self.client.get("/auth/frontend/")
+        self.assertRedirects(
+            response, "/accounts/discord/login/?next=/", fetch_redirect_response=False
+        )
         user = get_user_model().objects.create_superuser(
             username="admin", email="admin@example.com", password="secret"
         )
@@ -119,7 +123,9 @@ class DiscordLoginTests(TestCase):
         self.client.force_login(user, backend="config.auth.DiscordOnlyBackend")
         self.assertEqual(self.client.get("/admin/").status_code, 200)
         self.assertEqual(self.client.get("/").status_code, 200)
+        self.assertEqual(self.client.get("/auth/frontend/").status_code, 204)
         approved.enabled = False
         approved.save()
         self.assertEqual(self.client.get("/admin/").status_code, 302)
         self.assertEqual(self.client.get("/").status_code, 302)
+        self.assertEqual(self.client.get("/auth/frontend/").status_code, 302)
