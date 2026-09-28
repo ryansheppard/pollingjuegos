@@ -91,13 +91,16 @@ RELEASE=$(git rev-parse --short=12 HEAD)
 (`doctl auth init` on your machine). It obtains a short-lived, read-write
 registry credential via `doctl registry docker-config`, passes it to Podman
 through a temporary auth file, then deletes that file. It tags *both* images
-with the first 12 characters of HEAD and prints the tag. It does not push
-`latest` or reuse tags for uncommitted builds. Run `mise run build` alone for
+as `backend-<SHA>` and `frontend-<SHA>` in the **same** `backend` repository
+and prints the SHA. DigitalOcean's Starter tier allows only one repository;
+the first attempted release may already have created `backend`, so reuse it
+instead of trying to create a `frontend` repository. It does not push `latest`
+or reuse tags for uncommitted builds. Run `mise run build` alone for
 local image checks; `mise run push` also builds, so you needn't run both.
 Use the same `RELEASE` value on the droplet below.
 The registry is managed by Terraform (`terraform -chdir=terraform apply`, then
 `terraform -chdir=terraform output registry_endpoint`). It is account-wide and
-uses the storage-limited Starter tier; prune old releases after verifying
+uses the one-repository, 500 MB Starter tier; prune old releases after verifying
 rollback options. Keep registry credentials out of images and Terraform state.
 
 Terraform also provisions an Ubuntu droplet and firewall; see the legacy section
@@ -148,8 +151,11 @@ sudo sqlite3 /opt/pollingjuegos/db.sqlite3 \
 sudo chown -R 65532:65532 /var/lib/pollingjuegos/data
 ```
 
-On a fresh install, skip the copy. On the droplet, set `RELEASE` to the tag
-pushed above, then pull and migrate **before** starting the stack:
+On a fresh install, skip the copy. Copy the updated `deploy/compose.yaml` to
+the droplet (the initial version used separate repositories and cannot pull the
+frontend on Starter). Set `RELEASE` to the SHA printed by `mise run push`,
+**without** the `backend-`/`frontend-` prefix, then pull and migrate before
+starting the stack:
 
 ```sh
 RELEASE=YOUR_PUSHED_TAG
