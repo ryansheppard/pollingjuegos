@@ -8,6 +8,7 @@ requires-python = ">=3.14.7"
 dependencies = [
     "django>=6.1.1",
     "django-allauth[socialaccount]>=65.0",
+    "django-cf>=0.2.16",
     "django-ninja>=1.7.1",
     "whitenoise>=6.0",
 ]
@@ -20,7 +21,11 @@ requires = ["uv_build>=0.12.19,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
-dev = ["ruff>=0.16.9", "ty>=0.0.84"]
+dev = [
+    "ruff>=0.16.9",
+    "ty>=0.0.84",
+    "workers-py>=1.17.4",
+]
 
 [tool.ruff]
 extend-exclude = ["polls/migrations"]
