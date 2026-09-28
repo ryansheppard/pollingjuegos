@@ -1,0 +1,19 @@
+{
+  "name": "pollingjuegos-frontend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host localhost",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --host localhost"
+  },
+  "dependencies": {
+    "vue": "^3.5.43"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.9",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.1",
+    "vue-tsc": "^3.2.5"
+  }
+}

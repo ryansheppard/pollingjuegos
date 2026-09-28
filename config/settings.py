@@ -30,6 +30,15 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or get_random_secret_key()
 # Opt in to development mode explicitly; production defaults to DEBUG=False.
 DEBUG = os.environ.get("DJANGO_DEBUG", "").lower() == "true"
 
+# Enable only when Django is reachable solely through a trusted HTTPS proxy.
+SECURE_PROXY_SSL_HEADER = (
+    ("HTTP_X_FORWARDED_PROTO", "https")
+    if os.environ.get("DJANGO_TRUST_PROXY", "").lower() == "true"
+    else None
+)
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")

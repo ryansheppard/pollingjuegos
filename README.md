@@ -1,4 +1,4 @@
-# sjpoll
+# pollingjuegos
 
 ## Database
 
@@ -30,6 +30,51 @@ When `DJANGO_DEBUG=true`, interactive OpenAPI docs are at `/api/docs` (schema: `
 
 Voting uses the existing allowlisted Discord login session, not a client-supplied voter ID. For browser writes, first call `GET /api/csrf` to receive a `csrftoken` cookie and `csrf_token` response value, then send `X-CSRFToken: <csrf_token>` and the session cookie with the PUT. A separate frontend should initially proxy `/api/` and `/accounts/` through the same origin; cross-origin cookie/CORS deployment requires explicit trusted-origin, credentials and cookie configuration. Rankings are live (not frozen when a week ends); admins control which weeks exist, and ballots can currently be replaced at any time.
 
+## PollingJuegos frontend
+
+The minimal Vue app in `frontend/` shows weekly rankings and lets signed-in voters
+build, reorder, and save a 15-quarterback ballot. Admins create weeks in Django.
+
+For local development, use two terminals:
+
+```sh
+DJANGO_DEBUG=true uv run manage.py runserver 127.0.0.1:8000
+cd frontend && pnpm install && pnpm dev
+```
+
+Open **http://localhost:5173** (not port 8000). Vite proxies `/api/` and
+`/accounts/` to Django, keeping cookies and CSRF same-origin. For local Discord
+login, configure the OAuth redirect URL as
+`http://localhost:5173/accounts/discord/login/callback/`.
+
+For production, build with `cd frontend && pnpm install --frozen-lockfile && pnpm build`.
+Serve `frontend/dist/` at `https://pj.ryansheppard.xyz/` and proxy `/api/`,
+`/accounts/`, `/admin/`, and `/static/` to Django on the **same host**. For
+example, with Caddy on the droplet (adjust the absolute build path):
+
+```caddyfile
+pj.ryansheppard.xyz {
+    @django path /api/* /accounts/* /admin/* /static/*
+    handle @django {
+        reverse_proxy 127.0.0.1:8000
+    }
+    handle {
+        root * /absolute/path/to/sjpoll/frontend/dist
+        try_files {path} /index.html
+        file_server
+    }
+}
+```
+
+Bind Django only to loopback, set `DJANGO_ALLOWED_HOSTS=pj.ryansheppard.xyz`,
+`DJANGO_TRUST_PROXY=true`, and a persistent `DJANGO_SECRET_KEY`. Only set
+`DJANGO_TRUST_PROXY=true` behind a trusted proxy that sets `X-Forwarded-Proto`;
+never expose that Django port directly to the internet. Set the Discord OAuth
+redirect URL to
+`https://pj.ryansheppard.xyz/accounts/discord/login/callback/`.
+No cross-origin CORS or CSRF exceptions are required for this setup. Django's
+`/` login placeholder is not used when the reverse proxy serves the frontend.
+
 ## Static files and deployment
 
 For local development, enable Django's debug mode explicitly to have `runserver`
@@ -57,8 +102,8 @@ before deploying (`uv run manage.py check --deploy`).
 ## Discord sign-in
 
 Create a Discord OAuth2 application and set its redirect URL to
-`https://YOUR_HOST/accounts/discord/login/callback/` (use `http://localhost:8000/...`
-for local development). Set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` in the
+`https://YOUR_HOST/accounts/discord/login/callback/` (use `http://localhost:5173/...`
+for local frontend development). Set `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET` in the
 environment before starting Django. The app requests only the `identify` scope.
 Use a stable `DJANGO_SECRET_KEY` for persistent sessions.
 

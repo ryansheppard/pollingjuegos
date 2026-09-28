@@ -1,4 +1,6 @@
 [tools]
+pnpm = "12.7.0"
+terraform = "1.16.4"
 uv = "0.12.19"
 
 [tasks.test]
