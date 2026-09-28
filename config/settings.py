@@ -24,29 +24,15 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
-# Worker secrets/vars are bindings, not process environment variables.
-USE_CLOUDFLARE_D1 = os.environ.get("USE_CLOUDFLARE_D1", "").lower() == "true"
-
-
-def deployment_setting(name, default=""):
-    if USE_CLOUDFLARE_D1:
-        from workers import env  # ty: ignore[unresolved-import]
-
-        return getattr(env, name, default)
-    return os.environ.get(name, default)
-
-
 # Set DJANGO_SECRET_KEY for stable sessions and production deployments.
-SECRET_KEY = deployment_setting("DJANGO_SECRET_KEY") or get_random_secret_key()
-if USE_CLOUDFLARE_D1 and not deployment_setting("DJANGO_SECRET_KEY"):
-    raise RuntimeError("DJANGO_SECRET_KEY Worker secret is required")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY") or get_random_secret_key()
 
 # Opt in to development mode explicitly; production defaults to DEBUG=False.
 DEBUG = os.environ.get("DJANGO_DEBUG", "").lower() == "true"
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in deployment_setting("DJANGO_ALLOWED_HOSTS").split(",")
+    for host in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",")
     if host.strip()
 ]
 
@@ -93,8 +79,8 @@ SOCIALACCOUNT_PROVIDERS = {
     "discord": {
         "SCOPE": ["identify"],
         "APP": {
-            "client_id": deployment_setting("DISCORD_CLIENT_ID"),
-            "secret": deployment_setting("DISCORD_CLIENT_SECRET"),
+            "client_id": os.environ.get("DISCORD_CLIENT_ID", ""),
+            "secret": os.environ.get("DISCORD_CLIENT_SECRET", ""),
         },
     },
 }
@@ -120,26 +106,18 @@ WSGI_APPLICATION = "config.wsgi.application"
 # Database
 # https://docs.djangoproject.com/en/6.1/ref/settings/#databases
 
-if USE_CLOUDFLARE_D1:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django_cf.db.backends.d1",
-            "CLOUDFLARE_BINDING": "pollingjuegos",
-        }
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+        "TEST": {
+            # A separate on-disk database for each test run, removed by Django.
+            "NAME": str(
+                Path(tempfile.gettempdir()) / f"sjpoll-test-{uuid4().hex}.sqlite3"
+            ),
+        },
     }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": os.environ.get("DJANGO_SQLITE_PATH") or BASE_DIR / "db.sqlite3",
-            "TEST": {
-                # A separate on-disk database for each test run, removed by Django.
-                "NAME": str(
-                    Path(tempfile.gettempdir()) / f"sjpoll-test-{uuid4().hex}.sqlite3"
-                ),
-            },
-        }
-    }
+}
 
 
 # Password validation

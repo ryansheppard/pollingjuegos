@@ -8,15 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
-.venv-workers/
-python_modules/
-pylock.toml
-src/js-stubs/
 
 mise.local.toml
 .env
 .dev.vars*
-.wrangler/
 node_modules/
 *.sqlite3
 staticfiles/
