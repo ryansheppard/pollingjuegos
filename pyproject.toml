@@ -1,5 +1,5 @@
 [project]
-name = "sjpoll"
+name = "pollingjuegos"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -9,15 +9,9 @@ dependencies = [
     "django>=6.1.1",
     "django-allauth[socialaccount]>=65.0",
     "django-ninja>=1.7.1",
+    "gunicorn>=23,<24",
     "whitenoise>=6.0",
 ]
-
-[project.scripts]
-sjpoll = "sjpoll:main"
-
-[build-system]
-requires = ["uv_build>=0.12.19,<0.13.0"]
-build-backend = "uv_build"
 
 [dependency-groups]
 dev = ["ruff>=0.16.9", "ty>=0.0.84"]

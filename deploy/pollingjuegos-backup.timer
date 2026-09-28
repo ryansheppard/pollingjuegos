@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily pollingjuegos SQLite backup
+
+[Timer]
+OnCalendar=*-*-* 03:00:00 UTC
+Persistent=true
+Unit=pollingjuegos-backup.service
+
+[Install]
+WantedBy=timers.target

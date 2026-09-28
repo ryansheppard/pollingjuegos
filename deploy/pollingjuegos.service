@@ -1,0 +1,22 @@
+[Unit]
+Description=pollingjuegos Django (Gunicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=pollingjuegos
+Group=pollingjuegos
+WorkingDirectory=/opt/pollingjuegos
+EnvironmentFile=/etc/pollingjuegos.env
+ExecStart=/opt/pollingjuegos/.venv/bin/gunicorn --workers 1 --threads 2 --bind 127.0.0.1:8000 --access-logfile - --error-logfile - config.wsgi:application
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/opt/pollingjuegos
+
+[Install]
+WantedBy=multi-user.target

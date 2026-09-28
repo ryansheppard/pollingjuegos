@@ -59,7 +59,7 @@ pj.ryansheppard.xyz {
         reverse_proxy 127.0.0.1:8000
     }
     handle {
-        root * /absolute/path/to/sjpoll/frontend/dist
+        root * /opt/pollingjuegos/frontend/dist
         try_files {path} /index.html
         file_server
     }
@@ -74,6 +74,114 @@ redirect URL to
 `https://pj.ryansheppard.xyz/accounts/discord/login/callback/`.
 No cross-origin CORS or CSRF exceptions are required for this setup. Django's
 `/` login placeholder is not used when the reverse proxy serves the frontend.
+
+## Single-droplet deployment
+
+`terraform/` provisions a NYC3 Ubuntu 24.04 droplet (`s-1vcpu-512mb-10gb`),
+using the **existing DigitalOcean SSH key named `arch`**, and a firewall allowing
+TCP 22, 80 and 443 from IPv4 and IPv6. Port 8000 is never exposed. Port 80 is
+needed for Caddy's HTTP-to-HTTPS redirect and ACME HTTP challenges. The droplet
+and firewall are named `pollingjuegos`. Terraform does not manage DNS, secrets,
+or application releases.
+
+```sh
+cd terraform
+export DIGITALOCEAN_TOKEN=...  # token with permission to manage droplets/firewalls and read SSH keys
+terraform init
+terraform plan
+terraform apply
+terraform output ipv4_address
+```
+
+Set a Cloudflare **DNS-only** A record for `pj.ryansheppard.xyz` pointing at
+that IP before starting Caddy; do not add an AAAA record unless you have an
+IPv6 address configured. If enabling Cloudflare's proxy later, review TLS mode
+(Full strict) and the ACME/certificate setup. Register the Discord callback
+`https://pj.ryansheppard.xyz/accounts/discord/login/callback/`.
+Terraform state contains infrastructure details: keep it private (and use a
+secure remote backend if collaborating). Optional paid DigitalOcean droplet
+backups can be enabled with `-var='enable_droplet_backups=true'`.
+
+Build the Vue app **locally** (not on the 512 MB droplet):
+
+```sh
+pnpm -C frontend install --frozen-lockfile
+pnpm -C frontend build
+```
+
+On the droplet, install the base packages and create an unprivileged app user:
+
+```sh
+sudo apt update && sudo apt install -y caddy sqlite3 curl ca-certificates
+sudo adduser --system --group --home /opt/pollingjuegos pollingjuegos
+sudo chmod 755 /opt/pollingjuegos
+sudo install -d -o pollingjuegos -g pollingjuegos -m 0700 /var/backups/pollingjuegos
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo install -m 0755 "$HOME/.local/bin/uv" /usr/local/bin/uv
+```
+
+Review the installer before running it in production if you prefer a pinned
+binary. From the repository on your workstation, upload code and the built
+`frontend/dist/` without overwriting the server's SQLite database or secrets
+(replace `IP` with Terraform's output):
+
+```sh
+rsync -a --exclude .git --exclude .venv --exclude node_modules \
+  --exclude db.sqlite3 --exclude .env --exclude staticfiles \
+  --exclude terraform --exclude deploy --exclude mise.local.toml \
+  ./ root@IP:/opt/pollingjuegos/
+ssh root@IP 'chown -R pollingjuegos:pollingjuegos /opt/pollingjuegos && chmod 755 /opt/pollingjuegos'
+```
+
+On the droplet, install Python/dependencies (the repo pins Python in
+`.python-version`) and copy the deployment files from `deploy/` on your
+workstation, e.g. `scp deploy/* root@IP:/tmp/`. Then run:
+
+```sh
+sudo -u pollingjuegos -H sh -c 'cd /opt/pollingjuegos && /usr/local/bin/uv sync --locked --no-dev'
+sudo install -o root -g pollingjuegos -m 0640 /tmp/pollingjuegos.env.example /etc/pollingjuegos.env
+sudoedit /etc/pollingjuegos.env  # replace ALL placeholders; keep the secret key stable
+sudo install -m 0644 /tmp/Caddyfile /etc/caddy/Caddyfile
+sudo install -m 0644 /tmp/pollingjuegos.service /etc/systemd/system/pollingjuegos.service
+sudo install -m 0644 /tmp/pollingjuegos-backup.service /etc/systemd/system/pollingjuegos-backup.service
+sudo install -m 0644 /tmp/pollingjuegos-backup.timer /etc/systemd/system/pollingjuegos-backup.timer
+sudo install -m 0755 /tmp/backup-sqlite.sh /usr/local/bin/pollingjuegos-backup
+sudo install -d /etc/systemd/journald.conf.d
+sudo install -m 0644 /tmp/journald.conf /etc/systemd/journald.conf.d/pollingjuegos.conf
+sudo systemctl restart systemd-journald
+sudo systemctl daemon-reload
+sudo caddy validate --config /etc/caddy/Caddyfile
+sudo systemctl enable --now caddy
+```
+
+Run database migration and static collection with the production environment
+via transient systemd units (no credentials on the command line):
+
+```sh
+sudo systemd-run --wait --collect -p User=pollingjuegos -p WorkingDirectory=/opt/pollingjuegos -p EnvironmentFile=/etc/pollingjuegos.env /opt/pollingjuegos/.venv/bin/python manage.py migrate --noinput
+sudo systemd-run --wait --collect -p User=pollingjuegos -p WorkingDirectory=/opt/pollingjuegos -p EnvironmentFile=/etc/pollingjuegos.env /opt/pollingjuegos/.venv/bin/python manage.py collectstatic --noinput
+sudo systemctl enable --now pollingjuegos.service pollingjuegos-backup.timer
+sudo systemctl start pollingjuegos-backup.service  # verify the first backup
+```
+
+After updates, build and rsync again, then run `uv sync --locked --no-dev`,
+`migrate`, `collectstatic`, and `systemctl restart pollingjuegos.service`.
+`journalctl -u pollingjuegos -u caddy` shows service errors. The journald drop-in
+caps persistent journal use at 100 MB (50 MB for runtime logs) and reserves
+free space; this limits **journal logs only**, not the database, backups, or
+other files. The backup timer makes daily consistent SQLite snapshots, keeping
+roughly two weeks **on the same disk**: copy them offsite with an independently
+configured backup job and test restores. Neither local copies nor optional DO
+backups alone protect against all droplet/account failures. Set disk-space and
+backup-failure alerts; 10 GB and 512 MB leave little headroom. The app's
+console email backend is development-only: configure a production email
+backend before relying on email delivery or a clean `check --deploy`.
+
+When Tailscale is ready, verify SSH access through its address **before**
+removing public port 22; DigitalOcean's firewall cannot use Tailscale IPs as
+sources for traffic encapsulated over UDP, so remove its public SSH rule and
+use Tailscale's node firewall/SSH access controls. Keep an out-of-band recovery
+path (DO console). Avoid compiling the frontend on this tiny server.
 
 ## Static files and deployment
 
