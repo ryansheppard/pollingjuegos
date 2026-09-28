@@ -79,8 +79,12 @@ No cross-origin CORS or CSRF exceptions are required for this setup. Django's
 
 `terraform/` provisions a NYC3 Ubuntu 24.04 droplet (`s-1vcpu-512mb-10gb`),
 using the **existing DigitalOcean SSH key named `arch`**, and a firewall allowing
-TCP 22, 80 and 443 from IPv4 and IPv6. Port 8000 is never exposed. Port 80 is
-needed for Caddy's HTTP-to-HTTPS redirect and ACME HTTP challenges. The droplet
+only TCP 80 and 443 from IPv4 and IPv6. Public SSH (22) and Gunicorn (8000)
+are not exposed. Port 80 is needed for Caddy's HTTP-to-HTTPS redirect and ACME
+HTTP challenges. For an existing droplet, SSH access must already work over
+Tailscale before applying this firewall change. For a *new* droplet, bootstrap
+Tailscale via the DO console or temporarily allow SSH from **your own IP**;
+remove that temporary rule after verifying a new Tailscale SSH session. The droplet
 and firewall are named `pollingjuegos`. Terraform does not manage DNS, secrets,
 or application releases.
 
@@ -109,50 +113,61 @@ pnpm -C frontend install --frozen-lockfile
 pnpm -C frontend build
 ```
 
-On the droplet, install the base packages and create an unprivileged app user:
+If mise is installed at `/root/.local/bin/mise`, run this **in a root Bash
+shell** (`sudo -i` first if needed) to activate mise for future interactive
+sessions. Copy the binary to a location accessible to the app user, because
+`/root` is not accessible to `pollingjuegos`:
 
 ```sh
-sudo apt update && sudo apt install -y git caddy sqlite3 curl ca-certificates
+echo "eval \"\$(/root/.local/bin/mise activate bash)\"" >> ~/.bashrc
+source ~/.bashrc
+install -m 0755 /root/.local/bin/mise /usr/local/bin/mise
+```
+
+The `.bashrc` activation is for your interactive shell only; systemd does not
+read it. If your mise binary lives elsewhere, adjust the paths above. On the
+droplet, install the base packages and create an unprivileged app user:
+
+```sh
+sudo apt update && sudo apt install -y caddy sqlite3 ca-certificates
 sudo adduser --system --group --home /var/lib/pollingjuegos pollingjuegos
 sudo install -d -o pollingjuegos -g pollingjuegos -m 0755 /opt/pollingjuegos
 sudo install -d -o pollingjuegos -g pollingjuegos -m 0700 /var/backups/pollingjuegos
-curl -LsSf https://astral.sh/uv/install.sh | sh
-sudo install -m 0755 "$HOME/.local/bin/uv" /usr/local/bin/uv
 ```
 
-Review the installer before running it in production if you prefer a pinned
-binary. For a private GitHub repo, create a **fine-grained read-only token**
-scoped to `ryansheppard/pollingjuegos` with Contents: Read. On the droplet,
-create `/var/lib/pollingjuegos/.git-credentials` owned by `pollingjuegos`, mode
-0600, with a single line `https://ryansheppard:TOKEN@github.com` (edit it
-interactively; **never paste the token into a command, URL argument, or repo
-file**). Keep the home directory private and tell Git to use this store:
+The existing mise installation supplies uv; do not run the separate Astral uv
+installer. The `pollingjuegos` service account needs its **own** mise-managed
+uv installation (your login user's mise data directory may be inaccessible).
+From a local checkout, build the frontend as above and upload the source and
+`frontend/dist/` over Tailscale (replace `TAILSCALE_HOST` with its Tailscale IP
+or MagicDNS name). **Run this from the repository root**, not `frontend/`:
 
 ```sh
-sudo chmod 700 /var/lib/pollingjuegos
-sudo install -o pollingjuegos -g pollingjuegos -m 0600 /dev/null /var/lib/pollingjuegos/.git-credentials
-sudoedit /var/lib/pollingjuegos/.git-credentials
-sudo -u pollingjuegos -H git config --global credential.helper 'store --file=/var/lib/pollingjuegos/.git-credentials'
-sudo -u pollingjuegos -H git clone https://github.com/ryansheppard/pollingjuegos.git /opt/pollingjuegos
+rsync -a --exclude='.git/' --exclude='.venv/' --exclude='node_modules/' \
+  --exclude='db.sqlite3*' --exclude='.env' --exclude='.env.*' \
+  --exclude='staticfiles/' --exclude='terraform/' --exclude='mise.local.toml' \
+  ./ root@TAILSCALE_HOST:/opt/pollingjuegos/
+ssh root@TAILSCALE_HOST 'chown -R pollingjuegos:pollingjuegos /opt/pollingjuegos && chmod 755 /opt/pollingjuegos'
 ```
 
-Git's remote URL stays token-free. The token remains readable by the app user,
-so rotate it if the droplet is compromised; avoid broader account scopes. For a
-public repo, skip the credential steps. **Do not commit** `db.sqlite3`, `.env`,
-or the credential store; they must remain on the droplet. On your workstation,
-upload only the locally built frontend (replace `IP` with Terraform's output):
+Do **not** add `--delete`: the server's database, virtualenv, and collected
+static files live under `/opt/pollingjuegos` and must survive each upload.
+Use a reviewed local checkout; rsync also sends uncommitted changes. No
+repository token or deploy key is needed on the droplet.
+
+On the droplet, install uv through mise as `pollingjuegos` and sync
+Python/dependencies (`.python-version` pins Python, which uv downloads for that
+user). Only install uv, not the pnpm/terraform tools from `mise.toml`:
 
 ```sh
-rsync -a frontend/dist/ root@IP:/opt/pollingjuegos/frontend/dist/
-ssh root@IP 'chown -R pollingjuegos:pollingjuegos /opt/pollingjuegos/frontend/dist'
+sudo -u pollingjuegos -H sh -c 'cd /opt/pollingjuegos && /usr/local/bin/mise install uv@0.12.19 && /usr/local/bin/mise exec -- uv sync --locked --no-dev'
 ```
 
-On the droplet, install Python/dependencies (the repo pins Python in
-`.python-version`) and install the deployment files from the checkout:
-
+The systemd service runs `/opt/pollingjuegos/.venv/bin/gunicorn` directly, so
+it does not need mise or a login shell at runtime. Install the deployment files
+from the uploaded checkout:
 
 ```sh
-sudo -u pollingjuegos -H sh -c 'cd /opt/pollingjuegos && /usr/local/bin/uv sync --locked --no-dev'
 sudo install -o root -g pollingjuegos -m 0640 /opt/pollingjuegos/deploy/pollingjuegos.env.example /etc/pollingjuegos.env
 sudoedit /etc/pollingjuegos.env  # replace ALL placeholders; keep the secret key stable
 sudo install -m 0644 /opt/pollingjuegos/deploy/Caddyfile /etc/caddy/Caddyfile
@@ -178,13 +193,16 @@ sudo systemctl enable --now pollingjuegos.service pollingjuegos-backup.timer
 sudo systemctl start pollingjuegos-backup.service  # verify the first backup
 ```
 
-For updates, stop the service briefly, then pull with
-`sudo -u pollingjuegos -H git -C /opt/pollingjuegos pull --ff-only origin main`.
-Run `uv sync --locked --no-dev`, `migrate`, and `collectstatic` again, upload
-the rebuilt frontend `dist/` from your workstation, then start the service. Reinstall any changed
-systemd/Caddy/journald files as needed (and reload the relevant service).
-Never use `git clean -fdx` here: it would delete the database, venv, and built
-assets. If the token expires, replace the credential store entry before pulling.
+For updates, stop the service briefly, rebuild the frontend locally and
+repeat the rsync and ownership commands above. Then run
+`sudo -u pollingjuegos -H sh -c 'cd /opt/pollingjuegos && /usr/local/bin/mise exec -- uv sync --locked --no-dev'`,
+`migrate`, and `collectstatic` again before starting the service. Reinstall
+any changed systemd/Caddy/journald files as needed (and reload the relevant
+service). If you previously configured Git access on the droplet, revoke the
+repo token or deploy key at GitHub and remove its stored credential/private key
+from the droplet. For the token workflow, remove
+`/var/lib/pollingjuegos/.git-credentials` and unset that user's Git credential
+helper. Leave the droplet's **SSH login key** (`arch`) alone.
 `journalctl -u pollingjuegos -u caddy` shows service errors. The journald drop-in
 caps persistent journal use at 100 MB (50 MB for runtime logs) and reserves
 free space; this limits **journal logs only**, not the database, backups, or
@@ -196,11 +214,15 @@ backup-failure alerts; 10 GB and 512 MB leave little headroom. The app's
 console email backend is development-only: configure a production email
 backend before relying on email delivery or a clean `check --deploy`.
 
-When Tailscale is ready, verify SSH access through its address **before**
-removing public port 22; DigitalOcean's firewall cannot use Tailscale IPs as
-sources for traffic encapsulated over UDP, so remove its public SSH rule and
-use Tailscale's node firewall/SSH access controls. Keep an out-of-band recovery
-path (DO console). Avoid compiling the frontend on this tiny server.
+Before `terraform apply` removes public port 22, confirm a **new** SSH
+session over Tailscale works (not just an existing connection). Inspect the
+plan to ensure it updates only the firewall; do not remove the SSH key from the
+droplet. DigitalOcean's firewall sees Tailscale's underlying network traffic,
+not its inner SSH port, so no DO inbound SSH rule is required for relayed
+Tailscale connections. Direct Tailscale connections may require an additional
+inbound UDP rule; without one, Tailscale can use its relay network. Keep an
+out-of-band recovery path (DO console), and use Tailscale's access controls to
+restrict SSH. Avoid compiling the frontend on this tiny server.
 
 ## Static files and deployment
 

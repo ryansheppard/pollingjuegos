@@ -33,12 +33,6 @@ resource "digitalocean_firewall" "pollingjuegos" {
 
   inbound_rule {
     protocol         = "tcp"
-    port_range       = "22"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-
-  inbound_rule {
-    protocol         = "tcp"
     port_range       = "80"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
@@ -75,8 +69,4 @@ variable "enable_droplet_backups" {
 
 output "ipv4_address" {
   value = digitalocean_droplet.pollingjuegos.ipv4_address
-}
-
-output "ssh_command" {
-  value = "ssh root@${digitalocean_droplet.pollingjuegos.ipv4_address}"
 }
