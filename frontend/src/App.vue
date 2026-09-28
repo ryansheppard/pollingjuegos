@@ -12,7 +12,25 @@ const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const message = ref('')
+const theme = ref<'light' | 'dark'>(getInitialTheme())
+document.documentElement.dataset.theme = theme.value
 let loadId = 0
+
+function getInitialTheme(): 'light' | 'dark' {
+  try {
+    const saved = localStorage.getItem('pollingjuegos-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch { /* Storage can be disabled; the toggle still works for this visit. */ }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function toggleTheme() {
+  theme.value = theme.value === 'dark' ? 'light' : 'dark'
+  document.documentElement.dataset.theme = theme.value
+  try {
+    localStorage.setItem('pollingjuegos-theme', theme.value)
+  } catch { /* Keep the in-memory choice if storage is unavailable. */ }
+}
 
 const week = computed(() => weeks.value.find((w) => `${w.season}/${w.week}` === selected.value))
 const topScore = computed(() => rankings.value?.rankings[0]?.points || 1)
@@ -112,7 +130,12 @@ onMounted(async () => {
   <main>
     <header class="site-header">
       <div class="brand"><span class="brand-mark" aria-hidden="true">PJ</span><span>Polling<span class="brand-accent">Juegos</span></span></div>
-      <a class="sign-out" href="/accounts/logout/">Sign out <span aria-hidden="true">↗</span></a>
+      <div class="header-actions">
+        <button type="button" class="theme-toggle" :aria-label="theme === 'dark' ? 'Switch to light mode' : 'Switch to night mode'" :aria-pressed="theme === 'dark'" @click="toggleTheme">
+          <span aria-hidden="true">{{ theme === 'dark' ? '☀' : '☾' }}</span> {{ theme === 'dark' ? 'Light mode' : 'Night mode' }}
+        </button>
+        <a class="sign-out" href="/accounts/logout/">Sign out <span aria-hidden="true">↗</span></a>
+      </div>
     </header>
 
     <div class="hero">

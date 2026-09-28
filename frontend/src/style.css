@@ -22,6 +22,10 @@ main { max-width: 1320px; margin: 0 auto; padding: 0 clamp(1rem, 3vw, 3rem); }
 .sign-out { font-size: .82rem; font-weight: 700; text-decoration: none; }
 .sign-out:hover { color: #b85026; }
 .sign-out span { margin-left: .3rem; }
+.header-actions { display: flex; align-items: center; gap: 1.25rem; }
+.theme-toggle { padding: .45rem .65rem; border: 1px solid #d8dddf; border-radius: 4px; background: transparent; color: inherit; font-size: .78rem; font-weight: 700; }
+.theme-toggle:hover { border-color: #c75b2a; }
+.theme-toggle span { margin-right: .25rem; font-size: 1rem; }
 
 .hero { display: flex; justify-content: space-between; align-items: end; gap: 2rem; padding: clamp(2.5rem, 5vw, 4.5rem) 0 2.5rem; }
 .eyebrow { margin: 0 0 .45rem; color: #ac4e24; font-size: .68rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; }
@@ -96,6 +100,46 @@ input::placeholder { color: #8c98a3; }
 footer { padding: 2rem 0; color: #88939d; font-size: .72rem; }
 footer span { margin: 0 .35rem; }
 
+/* Dark theme: keep the editorial contrast and use orange only for emphasis. */
+:root[data-theme='dark'] { color-scheme: dark; color: #ebeff3; background: #0e1b2b; }
+[data-theme='dark'] .site-header { border-color: #354657; }
+[data-theme='dark'] .brand-mark { background: #29405a; }
+[data-theme='dark'] .brand-accent, [data-theme='dark'] .period,
+[data-theme='dark'] .ranking-item:first-child .rank-number,
+[data-theme='dark'] .slot-number { color: #f09866; }
+[data-theme='dark'] .rank-number { color: #b3bfcb; }
+[data-theme='dark'] .sign-out:hover, [data-theme='dark'] .eyebrow { color: #f09866; }
+[data-theme='dark'] .hero-copy, [data-theme='dark'] .week-picker label,
+[data-theme='dark'] .search-label, [data-theme='dark'] .empty-state,
+[data-theme='dark'] .methodology p, [data-theme='dark'] .ballot-hint,
+[data-theme='dark'] .add-help, [data-theme='dark'] .loading { color: #b3bfcb; }
+[data-theme='dark'] .theme-toggle { border-color: #425469; }
+[data-theme='dark'] .theme-toggle:hover { border-color: #f09866; }
+[data-theme='dark'] .panel, [data-theme='dark'] .loading { background: #17283b; border-color: #354657; box-shadow: none; }
+[data-theme='dark'] select, [data-theme='dark'] input,
+[data-theme='dark'] .icon-button, [data-theme='dark'] .remove-button,
+[data-theme='dark'] .add-button { background: #122236; border-color: #425469; color: #ebeff3; }
+[data-theme='dark'] input::placeholder { color: #a6b3c0; }
+[data-theme='dark'] .pill { background: #29405a; color: #e0eaf2; }
+[data-theme='dark'] .pill-complete { background: #573a2b; color: #ffd0aa; }
+[data-theme='dark'] .chart-label, [data-theme='dark'] .methodology { border-color: #a8bacb; color: #ebeff3; }
+[data-theme='dark'] .chart-label span, [data-theme='dark'] .vote-count,
+[data-theme='dark'] .team, [data-theme='dark'] .score span { color: #b3bfcb; }
+[data-theme='dark'] .ranking-item, [data-theme='dark'] .ballot-item,
+[data-theme='dark'] .available-list li { border-color: #354657; }
+[data-theme='dark'] .score-track, [data-theme='dark'] .progress-track { background: #354657; }
+[data-theme='dark'] .score-fill { background: #7793b0; }
+[data-theme='dark'] .ranking-item:first-child .score-fill,
+[data-theme='dark'] .progress-fill { background: #f09866; }
+[data-theme='dark'] .icon-button:hover:not(:disabled) { background: #29405a; }
+[data-theme='dark'] .remove-button:hover:not(:disabled) { background: #573a2b; color: #ffd0aa; }
+[data-theme='dark'] .save-button { background: #e17e49; color: #101c2a; }
+[data-theme='dark'] .save-button:hover:not(:disabled) { background: #f09866; }
+[data-theme='dark'] .add-button:hover:not(:disabled) { border-color: #f09866; color: #ffd0aa; }
+[data-theme='dark'] .error { background: #492d34; color: #ffc1b8; }
+[data-theme='dark'] .success { background: #234536; color: #bde8c9; }
+[data-theme='dark'] footer { color: #a6b3c0; }
+
 @media (max-width: 800px) {
   .grid { grid-template-columns: 1fr; }
   .ballot-panel { order: 0; }
@@ -109,6 +153,9 @@ footer span { margin: 0 .35rem; }
   .site-header { min-height: 65px; }
   .brand { font-size: 1.3rem; }
   .brand-mark { width: 1.8rem; height: 1.8rem; font-size: .95rem; }
+  .header-actions { gap: .65rem; }
+  .theme-toggle { font-size: 0; }
+  .theme-toggle span { margin: 0; font-size: 1rem; }
   .hero { padding: 2.5rem 0 1.75rem; }
   .available-list { grid-template-columns: 1fr; }
   .panel-heading { margin-bottom: 1rem; }
