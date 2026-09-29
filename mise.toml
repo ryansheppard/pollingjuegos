@@ -20,28 +20,5 @@ run = "podman build -f deploy/Dockerfile.frontend -t pollingjuegos-frontend:loca
 description = "Build both production images"
 depends = ["build:backend", "build:frontend"]
 
-[tasks.push]
-description = "Push both locally built images to DigitalOcean Container Registry"
-run = '''
-set -eu
-if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-  echo "Commit changes before pushing a release tagged with HEAD" >&2
-  exit 1
-fi
-mise run -j 1 build
-release=$(git rev-parse --short=12 HEAD)
-# Starter tier allows one repository; use distinct tags in the existing one.
-repository=registry.digitalocean.com/pollingjuegos/backend
-authfile=$(mktemp)
-trap 'rm -f "$authfile"' EXIT
-chmod 600 "$authfile"
-doctl registry docker-config pollingjuegos --read-write --expiry-seconds 3600 > "$authfile"
-podman tag pollingjuegos-backend:local "$repository:backend-$release"
-podman tag pollingjuegos-frontend:local "$repository:frontend-$release"
-podman push --authfile "$authfile" "$repository:backend-$release"
-podman push --authfile "$authfile" "$repository:frontend-$release"
-echo "Pushed backend and frontend as $release"
-'''
-
 [tasks.test]
 run = "uv run manage.py test"
