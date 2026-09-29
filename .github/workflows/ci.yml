@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '24'
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install_args: uv hk gitleaks taplo pnpm
+      - run: uv sync --locked
+      - run: hk check --all
+      - run: mise run test
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+
+  publish:
+    name: Publish images
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [checks]
+    runs-on: ubuntu-latest
+    concurrency:
+      group: publish-main
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Log in to DigitalOcean Container Registry
+        run: doctl registry login --expiry-seconds 3600
+      - name: Build and push both images
+        run: |
+          set -euo pipefail
+          release="${GITHUB_SHA::12}"
+          repository=registry.digitalocean.com/pollingjuegos/backend
+          docker build -f deploy/Dockerfile.backend \
+            -t "$repository:backend-$release" .
+          docker build -f deploy/Dockerfile.frontend \
+            -t "$repository:frontend-$release" .
+          docker push "$repository:backend-$release"
+          docker push "$repository:frontend-$release"
+          echo "Published $release (not deployed)" >> "$GITHUB_STEP_SUMMARY"

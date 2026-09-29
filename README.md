@@ -90,9 +90,22 @@ reverse proxy serves the frontend.
 
 ## Container deployment (recommended)
 
-Build and push on your development machine; the droplet only pulls images. The
-frontend builder uses pnpm (Node is confined to the build stage); Django static
-files are collected in the backend image. From the repository root:
+GitHub Actions runs `hk check --all`, `mise run test`, and the frontend
+`pnpm build` on pull requests and pushes to `main`, using mise for the pinned
+tools. After checks pass on `main`, it builds and pushes both images to
+DigitalOcean Container Registry.
+Set the repository Actions secret `DIGITALOCEAN_ACCESS_TOKEN` to a token with
+registry read/write access (not the droplet's read-only credential). Do not
+expose it to pull requests. Require the **Checks** status in the `main` branch protection rules to enforce
+pre-merge checks.
+Publishing does **not** deploy: use the 12-character commit SHA from the publish
+job summary as `RELEASE` when updating the droplet. Registry Starter has a
+500 MB limit, so monitor storage and prune old tags only after confirming
+rollback options.
+
+You can also build and push on your development machine; the droplet only pulls
+images. The frontend builder uses pnpm (Node is confined to the build stage);
+Django static files are collected in the backend image. From the repository root:
 
 ```sh
 mise run build            # build:backend and build:frontend are also available
