@@ -9,38 +9,22 @@ permissions:
   contents: read
 
 jobs:
-  backend:
-    name: Python checks
+  checks:
+    name: Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: astral-sh/setup-uv@d0d8abe699bfb85fec6de9f7adb5ae17292296ff # v6
-        with:
-          enable-cache: true
-      - run: uv python install
-      - run: uv sync --locked
-      - run: uv run --locked ruff check .
-      - run: uv run --locked ruff format --check .
-      - run: uv run --locked ty check
-      - run: uv run --locked manage.py test
-
-  frontend:
-    name: Frontend checks
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 12.7.0
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: '24'
-          cache: pnpm
-          cache-dependency-path: frontend/pnpm-lock.yaml
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
+        with:
+          install_args: uv hk gitleaks taplo pnpm
+      - run: uv sync --locked
+      - run: hk check --all
+      - run: mise run test
       - run: pnpm install --frozen-lockfile
         working-directory: frontend
       - run: pnpm build
@@ -49,7 +33,7 @@ jobs:
   publish:
     name: Publish images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [backend, frontend]
+    needs: [checks]
     runs-on: ubuntu-latest
     concurrency:
       group: publish-main
