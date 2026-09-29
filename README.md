@@ -225,14 +225,18 @@ environment with required reviewers):
 - `DEPLOY_HOST`: droplet Tailscale IP or MagicDNS hostname.
 - `DEPLOY_SSH_KEY`: private key matching the deploy user's authorized key.
 - `DEPLOY_KNOWN_HOSTS`: a **verified** SSH host-key line for `DEPLOY_HOST`
-  (e.g. `100.x.y.z ssh-ed25519 AAAA...`). Get the public host key from
-  `/etc/ssh/ssh_host_ed25519_key.pub` via a trusted existing session or the
-  DO console; do not trust an unauthenticated `ssh-keyscan` in CI.
+  (e.g. `100.x.y.z ssh-ed25519 AAAA...`). For ordinary OpenSSH, get the
+  public host key from `/etc/ssh/ssh_host_ed25519_key.pub` via a trusted
+  existing session or the DO console. **Tailscale SSH uses a different host
+  key**: obtain and verify the key it serves instead. Never trust an
+  unauthenticated `ssh-keyscan` in CI.
 
-The droplet still needs its own read-only Docker registry login. The workflow
-never sends `DIGITALOCEAN_ACCESS_TOKEN` or Django secrets over SSH. GitHub
-will create an unprotected `production` environment if one does not already
-exist, so configure approval rules **before** merging if you want them.
+The droplet still needs its own read-only Docker registry login. Both publish
+and deploy jobs use the `production` environment for their secrets. If it has
+required reviewers, GitHub may request approval for each job separately. The
+workflow never sends `DIGITALOCEAN_ACCESS_TOKEN` or Django secrets over SSH.
+GitHub will create an unprotected `production` environment if one does not
+already exist, so configure approval rules **before** merging if you want them.
 
 The Compose file keeps Gunicorn private, mounts the **directory** holding
 SQLite (`/var/lib/pollingjuegos/data`), and persists Caddy's `/data` and
