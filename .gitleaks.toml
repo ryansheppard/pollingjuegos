@@ -1,0 +1,9 @@
+title = "pollingjuegos"
+
+[extend]
+useDefault = true
+
+# gitleaks dir scans ignored files too; local mise settings contain real credentials.
+[[allowlists]]
+description = "Ignore local, untracked mise credentials"
+paths = ['''^mise\.local\.toml$''']

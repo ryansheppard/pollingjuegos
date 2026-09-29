@@ -1,0 +1,17 @@
+amends "package://github.com/jdx/hk/releases/download/v2.3.1/hk@2.3.1#/Config.pkl"
+import "package://github.com/jdx/hk/releases/download/v2.3.1/hk@2.3.1#/Builtins.pkl"
+
+// Ruff and ty are project dev dependencies; use uv's .venv for every step.
+steps {
+    ["ruff"] = (Builtins.ruff) {
+        prefix = List("uv", "run")
+    }
+    ["ruff-format"] = (Builtins.ruff_format) {
+        prefix = List("uv", "run")
+    }
+    ["ty"] = (Builtins.ty) {
+        prefix = List("uv", "run")
+    }
+    ["gitleaks"] = Builtins.gitleaks
+    ["taplo-format"] = Builtins.taplo_format
+}

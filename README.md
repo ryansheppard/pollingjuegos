@@ -17,6 +17,10 @@ uv run manage.py test
 
 Each test run creates and removes its own uniquely named SQLite file in the system temporary directory; tests never use `db.sqlite3`.
 
+## Python linting
+
+After `uv sync` and `mise install`, run `hk check` for changed files or `hk check --all` for all files. Run `hk install` to enable the pre-commit hook. hk invokes Ruff and ty through `uv run`, using the project's dev dependencies in `.venv`; mise supplies gitleaks and Taplo. Gitleaks scans the working tree, while the other checks receive matching changed files.
+
 ## QB poll JSON API
 
 When `DJANGO_DEBUG=true`, interactive OpenAPI docs are at `/api/docs` (schema: `/api/openapi.json`); both routes are disabled otherwise. Weeks and the QB/team catalog are maintained in Django admin; only existing weeks accept ballots. All reads are JSON:

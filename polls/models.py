@@ -56,14 +56,14 @@ class PollWeek(models.Model):
         return self.closes_at is not None and timezone.now() >= self.closes_at
 
     class Meta:
-        constraints = [
+        constraints = [  # noqa: RUF012 - Django Meta expects a sequence of constraints
             models.UniqueConstraint(fields=["season", "week"], name="unique_poll_week"),
             models.CheckConstraint(
                 condition=Q(season__gte=1), name="poll_season_positive"
             ),
             models.CheckConstraint(condition=Q(week__gte=1), name="poll_week_positive"),
         ]
-        ordering = ["-season", "-week"]
+        ordering = ["-season", "-week"]  # noqa: RUF012 - Django Meta option
 
     def __str__(self):
         return f"{self.season} week {self.week}"
@@ -79,7 +79,7 @@ class Ballot(models.Model):
     )
 
     class Meta:
-        constraints = [
+        constraints = [  # noqa: RUF012 - Django Meta expects a sequence of constraints
             models.UniqueConstraint(
                 fields=["poll_week", "voter"], name="unique_weekly_ballot"
             )
@@ -98,7 +98,7 @@ class Vote(models.Model):
     rank = models.PositiveIntegerField(validators=[MinValueValidator(1)])
 
     class Meta:
-        constraints = [
+        constraints = [  # noqa: RUF012 - Django Meta expects a sequence of constraints
             models.UniqueConstraint(
                 fields=["ballot", "rank"], name="unique_ballot_rank"
             ),
@@ -107,7 +107,7 @@ class Vote(models.Model):
             ),
             models.CheckConstraint(condition=Q(rank__gte=1), name="vote_rank_positive"),
         ]
-        ordering = ["rank"]
+        ordering = ["rank"]  # noqa: RUF012 - Django Meta option
 
     def __str__(self):
         return f"{self.ballot}: #{self.rank} {self.quarterback}"
