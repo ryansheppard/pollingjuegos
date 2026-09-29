@@ -93,15 +93,13 @@ reverse proxy serves the frontend.
 GitHub Actions runs `hk check --all`, `mise run test`, and the frontend
 `pnpm build` on pull requests and pushes to `main`, using mise for the pinned
 tools. After checks pass on `main`, it builds and pushes both images to
-DigitalOcean Container Registry.
+DigitalOcean Container Registry, then deploys via Tailscale/SSH (see below).
 Set the repository Actions secret `DIGITALOCEAN_ACCESS_TOKEN` to a token with
 registry read/write access (not the droplet's read-only credential). Do not
-expose it to pull requests. Require the **Checks** status in the `main` branch protection rules to enforce
-pre-merge checks.
-Publishing does **not** deploy: use the 12-character commit SHA from the publish
-job summary as `RELEASE` when updating the droplet. Registry Starter has a
-500 MB limit, so monitor storage and prune old tags only after confirming
-rollback options.
+expose it to pull requests. Require the **Checks** status in the `main` branch
+protection rules to enforce pre-merge checks. Registry Starter has a 500 MB
+limit, so monitor storage and prune old tags only after confirming rollback
+options.
 
 You can also build and push on your development machine; the droplet only pulls
 images. The frontend builder uses pnpm (Node is confined to the build stage);
@@ -141,13 +139,14 @@ same time: both bind ports 80/443.
 One-time droplet setup, from your local checkout (substitute your Tailscale host):
 
 ```sh
-scp deploy/compose.yaml deploy/backup-sqlite.sh \
+scp deploy/compose.yaml deploy/deploy.sh deploy/backup-sqlite.sh \
   deploy/pollingjuegos.env.example deploy/pollingjuegos-backup.service \
   deploy/pollingjuegos-backup.timer root@TAILSCALE_HOST:/tmp/
 ssh root@TAILSCALE_HOST
 # On the droplet:
 install -d -m 0755 /opt/pollingjuegos
 install -m 0644 /tmp/compose.yaml /opt/pollingjuegos/compose.yaml
+install -m 0755 /tmp/deploy.sh /usr/local/bin/pollingjuegos-deploy
 install -d -m 0700 /var/lib/pollingjuegos/data
 # Docker runs the backend as UID 65532; SQLite needs directory write access.
 chown -R 65532:65532 /var/lib/pollingjuegos/data
@@ -177,30 +176,72 @@ sudo sqlite3 /opt/pollingjuegos/db.sqlite3 \
 sudo chown -R 65532:65532 /var/lib/pollingjuegos/data
 ```
 
-On a fresh install, skip the copy. Copy the updated `deploy/compose.yaml` to
-the droplet (the initial version used separate repositories and cannot pull the
-frontend on Starter). Set `RELEASE` to the SHA printed by `mise run push`,
-**without** the `backend-`/`frontend-` prefix, then pull and migrate before
-starting the stack:
+On a fresh install, skip the copy. Ensure the current `deploy/compose.yaml`
+and `deploy/deploy.sh` are installed on the droplet as above. Once **both**
+images are published, pass the 12-character commit SHA (without the
+`backend-`/`frontend-` prefix) to the deploy script:
 
 ```sh
-RELEASE=YOUR_PUSHED_TAG
-sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml pull
-sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml \
-  run --rm backend /app/.venv/bin/python manage.py migrate --noinput
-sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml up -d
-sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml ps
+sudo /usr/local/bin/pollingjuegos-deploy YOUR_PUSHED_SHA
 ```
+
+The script pulls both images before stopping the backend, runs migrations using
+the new backend image, then starts the stack and records the release in
+`/opt/pollingjuegos/.env`. The frontend may briefly return errors while the
+backend is stopped. If pull fails, the old stack keeps running; if migration
+fails, the backend stays stopped for investigation. Keep the SQLite backup
+timer running and verify backups before schema-changing updates.
+
+### Automatic deployment over Tailscale
+
+**Set up and test the manual command above before enabling the Actions deploy
+job.** The job runs only after `publish` succeeds on `main`; pull requests do
+not connect to the droplet. Create a dedicated `deploy` Unix user on the
+droplet with an SSH public key in its `authorized_keys` and no Docker-group
+membership. Give it only passwordless permission to invoke the root-owned
+script using `sudo visudo -f /etc/sudoers.d/pollingjuegos-deploy`:
+
+```text
+deploy ALL=(root) NOPASSWD: /usr/local/bin/pollingjuegos-deploy *
+```
+
+Keep that script, `/opt/pollingjuegos/compose.yaml`, and their parent
+directories root-owned and not writable by `deploy`: Docker Compose with a
+writable config effectively grants root access. The script validates its one
+SHA argument. Test `ssh deploy@TAILSCALE_HOST 'sudo -n
+/usr/local/bin/pollingjuegos-deploy YOUR_PUSHED_SHA'` before relying on CI.
+
+Create a Tailscale OAuth client authorized to create ephemeral nodes with
+`tag:github-deploy` (`auth_keys` write), and allow that tag to reach the
+droplet's Tailscale IP on TCP port 22 in the tailnet policy. This workflow
+uses ordinary SSH over Tailscale with a deploy key. If the droplet uses
+**Tailscale SSH** instead of OpenSSH, its SSH policy must additionally permit
+`tag:github-deploy` to log in as `deploy` on the tagged droplet.
+
+Set these GitHub Actions secrets (preferably on a protected `production`
+environment with required reviewers):
+
+- `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET`: Tailscale OAuth client.
+- `DEPLOY_HOST`: droplet Tailscale IP or MagicDNS hostname.
+- `DEPLOY_SSH_KEY`: private key matching the deploy user's authorized key.
+- `DEPLOY_KNOWN_HOSTS`: a **verified** SSH host-key line for `DEPLOY_HOST`
+  (e.g. `100.x.y.z ssh-ed25519 AAAA...`). Get the public host key from
+  `/etc/ssh/ssh_host_ed25519_key.pub` via a trusted existing session or the
+  DO console; do not trust an unauthenticated `ssh-keyscan` in CI.
+
+The droplet still needs its own read-only Docker registry login. The workflow
+never sends `DIGITALOCEAN_ACCESS_TOKEN` or Django secrets over SSH. GitHub
+will create an unprotected `production` environment if one does not already
+exist, so configure approval rules **before** merging if you want them.
 
 The Compose file keeps Gunicorn private, mounts the **directory** holding
 SQLite (`/var/lib/pollingjuegos/data`), and persists Caddy's `/data` and
 `/config` for HTTPS certificates. Never mount only the SQLite file. For each
-update, push *both* images with a new tag, repeat pull → migrate → up, and
-check logs with
-`sudo env RELEASE="$RELEASE" docker compose -f /opt/pollingjuegos/compose.yaml logs`.
-Migrations may not be reversible: back up and test restores before updating;
-rolling images back does not roll the database back. Static files require no
-host `collectstatic` step. Set up the existing backup timer against the **new** DB path after migration.
+update, push *both* images with a new tag and rerun the deploy script. Check
+logs with `sudo docker compose -f /opt/pollingjuegos/compose.yaml logs`.
+Migrations may not be reversible; rolling images back does not roll the
+database back. Static files require no host `collectstatic` step. Set up the
+existing backup timer against the **new** DB path after migration.
 Install the uploaded backup units/script, and override the service's user and
 source path (UID 65532 owns the DB, so the old `pollingjuegos` host user cannot
 read it):
