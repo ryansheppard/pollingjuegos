@@ -1,11 +1,12 @@
 from allauth.core.context import request_context
 from allauth.socialaccount.internal.flows.login import complete_login
 from allauth.socialaccount.models import SocialAccount, SocialLogin
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
-from django.test import RequestFactory, TestCase
+from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
 from polls.models import ApprovedDiscordUser
@@ -13,6 +14,15 @@ from polls.models import ApprovedDiscordUser
 from .social import DiscordAllowlistAdapter
 
 
+# Admin templates reference static assets; tests do not run collectstatic.
+@override_settings(
+    STORAGES={
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+)
 class DiscordLoginTests(TestCase):
     def social_login(self, uid, provider="discord"):
         return SocialLogin(
@@ -22,7 +32,7 @@ class DiscordLoginTests(TestCase):
 
     def request(self):
         request = RequestFactory().get("/accounts/discord/login/callback/")
-        SessionMiddleware(lambda req: None).process_request(request)
+        SessionMiddleware(lambda _req: None).process_request(request)
         request._messages = FallbackStorage(request)
         request.user = AnonymousUser()
         return request
