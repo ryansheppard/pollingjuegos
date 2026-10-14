@@ -80,7 +80,10 @@ py_binary(
     srcs = ["server.py"],
     main = "server.py",
     visibility = ["//backend:__subpackages__"],
-    deps = ["@pypi//gunicorn"],
+    deps = [
+        ":backend",  # keep
+        "@pypi//gunicorn",
+    ],
 )
 
 py_image_layer(
