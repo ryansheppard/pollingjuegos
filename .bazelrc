@@ -1,2 +1,3 @@
 common --@aspect_rules_py//py:python_version=3.14
 common --@pypi//dep_group=dev
+common --repo_env=DO_NOT_TRACK=1

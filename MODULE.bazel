@@ -1,5 +1,6 @@
 bazel_dep(name = "aspect_gazelle_prebuilt", version = "0.0.26")
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.8")
+bazel_dep(name = "rules_img", version = "0.3.23")
 
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(
@@ -14,6 +15,20 @@ use_repo(uv, "pypi")
 
 interpreters = use_extension("@aspect_rules_py//py:extensions.bzl", "python_interpreters")
 interpreters.toolchain(python_version = "3.14")
+interpreters.configure(
+    build_config = "install_only_stripped",
+    releases = ["20261013"],
+)
 use_repo(interpreters, "python_interpreters")
 
 register_toolchains("@python_interpreters//:all")
+
+pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "distroless_cc",
+    digest = "sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2",
+    registry = "gcr.io",
+    repository = "distroless/cc-debian13",
+    tag = "nonroot",
+)

@@ -1,4 +1,9 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library", "py_test")
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_image_layer", "py_library", "py_test")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:load.bzl", "image_load")
+load("@rules_img//img:push.bzl", "image_push")
+load("//tools:collectstatic.bzl", "collectstatic")
 
 # gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
 # gazelle:map_kind py_binary py_binary @aspect_rules_py//py:defs.bzl
@@ -9,8 +14,12 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library", "py_test")
 py_binary(
     name = "manage",
     srcs = ["manage.py"],
+    imports = ["."],  # keep
     visibility = ["//backend:__subpackages__"],
-    deps = ["@pypi//django"],
+    deps = [
+        ":backend",  # keep
+        "@pypi//django",
+    ],
 )
 
 py_library(
@@ -37,6 +46,7 @@ py_library(
         "polls/models.py",
         "polls/tests.py",
         "polls/views.py",
+        "server.py",
     ],
     data = glob(["templates/**"]),  # keep
     visibility = ["//backend:__subpackages__"],
@@ -44,6 +54,7 @@ py_library(
         "@pypi//django",
         "@pypi//django_allauth",
         "@pypi//django_ninja",
+        "@pypi//gunicorn",
         "@pypi//whitenoise",  # keep
     ],
 )
@@ -62,4 +73,62 @@ py_test(
         "@pypi//django",
         "@pypi//django_allauth",
     ],
+)
+
+py_binary(
+    name = "server",  # keep
+    srcs = ["server.py"],
+    main = "server.py",
+    visibility = ["//backend:__subpackages__"],
+    deps = ["@pypi//gunicorn"],
+)
+
+py_image_layer(
+    name = "python_layers",
+    binaries = [
+        ":server",
+        ":manage",
+    ],
+    launcher_dir = "/app/bin",
+)
+
+collectstatic(
+    name = "collected_static",
+    tool = ":manage",
+)
+
+image_layer(
+    name = "static_layer",
+    srcs = {"/app/static": ":collected_static"},
+)
+
+image_manifest(
+    name = "image",
+    base = "@distroless_cc",
+    entrypoint = ["/app/bin/server"],
+    env = {
+        "RUNFILES_DIR": "/app.runfiles",
+        "DJANGO_STATIC_ROOT": "/app/static",
+    },
+    layers = [
+        ":static_layer",
+        ":python_layers",
+    ],
+)
+
+image_load(
+    name = "load",
+    daemon = "podman",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+    tag = "latest",
+)
+
+image_push(
+    name = "push",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+    tag = "latest",
 )
