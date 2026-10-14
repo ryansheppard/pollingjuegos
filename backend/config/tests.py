@@ -8,6 +8,7 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.contrib.sessions.middleware import SessionMiddleware
 from django.test import RequestFactory, TestCase, override_settings
 from django.urls import reverse
+
 from polls.models import ApprovedDiscordUser
 
 from .social import DiscordAllowlistAdapter
