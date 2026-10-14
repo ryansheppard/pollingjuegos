@@ -133,5 +133,4 @@ image_push(
     image = ":image",
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
-    tag = "latest",
 )
