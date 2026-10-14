@@ -1,4 +1,5 @@
 [tools]
+bazel = "9.3.0"
 doctl = "1.175.0"
 gitleaks = "8.30.1"
 hk = "2.3.1"

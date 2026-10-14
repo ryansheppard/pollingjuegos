@@ -5,19 +5,19 @@ description = "Add your description here"
 readme = "README.md"
 authors = [{ name = "Ryan Sheppard", email = "ryandsheppard95@gmail.com" }]
 requires-python = ">=3.14.7"
-dependencies = [
+
+[dependency-groups]
+main = [
   "django>=6.1.1",
   "django-allauth[socialaccount]>=65.0",
   "django-ninja>=1.7.1",
   "gunicorn>=23,<24",
   "whitenoise>=6.0",
 ]
-
-[dependency-groups]
-dev = ["ruff>=0.16.9", "ty>=0.0.84"]
+dev = ["ruff>=0.16.9", "ty>=0.0.84", { include-group = "main" }]
 
 [tool.ruff]
-extend-exclude = ["polls/migrations"]
+extend-exclude = ["backend/polls/migrations"]
 
 [tool.ty.src]
-exclude = ["polls/migrations"]
+exclude = ["backend/polls/migrations"]

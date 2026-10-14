@@ -1,0 +1,65 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library", "py_test")
+
+# gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_binary py_binary @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_test py_test @aspect_rules_py//py:defs.bzl
+# gazelle:python_root
+# gazelle:python_generation_mode project
+
+py_binary(
+    name = "manage",
+    srcs = ["manage.py"],
+    visibility = ["//backend:__subpackages__"],
+    deps = ["@pypi//django"],
+)
+
+py_library(
+    name = "backend",
+    srcs = [
+        "config/__init__.py",
+        "config/asgi.py",
+        "config/auth.py",
+        "config/settings.py",
+        "config/social.py",
+        "config/tests.py",
+        "config/urls.py",
+        "config/wsgi.py",
+        "manage.py",
+        "polls/__init__.py",
+        "polls/admin.py",
+        "polls/api.py",
+        "polls/apps.py",
+        "polls/migrations/0001_initial.py",
+        "polls/migrations/0002_approveddiscorduser.py",
+        "polls/migrations/0003_seed_teams_and_quarterbacks.py",
+        "polls/migrations/0004_pollweek_closes_at.py",
+        "polls/migrations/__init__.py",
+        "polls/models.py",
+        "polls/tests.py",
+        "polls/views.py",
+    ],
+    data = glob(["templates/**"]),  # keep
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "@pypi//django",
+        "@pypi//django_allauth",
+        "@pypi//django_ninja",
+        "@pypi//whitenoise",  # keep
+    ],
+)
+
+py_test(
+    name = "backend_test",
+    size = "small",
+    srcs = [
+        "polls/test_api.py",
+        "test_runner.py",
+    ],
+    imports = ["."],
+    main = "test_runner.py",
+    deps = [
+        ":backend",  # keep
+        "@pypi//django",
+        "@pypi//django_allauth",
+    ],
+)

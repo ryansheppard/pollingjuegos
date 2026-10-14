@@ -15,3 +15,5 @@ mise.local.toml
 node_modules/
 *.sqlite3
 staticfiles/
+
+bazel-*

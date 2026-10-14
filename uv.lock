@@ -322,7 +322,18 @@ wheels = [
 name = "pollingjuegos"
 version = "0.1.0"
 source = { virtual = "." }
-dependencies = [
+
+[package.dev-dependencies]
+dev = [
+    { name = "django" },
+    { name = "django-allauth", extra = ["socialaccount"] },
+    { name = "django-ninja" },
+    { name = "gunicorn" },
+    { name = "ruff" },
+    { name = "ty" },
+    { name = "whitenoise" },
+]
+main = [
     { name = "django" },
     { name = "django-allauth", extra = ["socialaccount"] },
     { name = "django-ninja" },
@@ -330,25 +341,24 @@ dependencies = [
     { name = "whitenoise" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "ruff" },
-    { name = "ty" },
-]
-
 [package.metadata]
-requires-dist = [
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "django", specifier = ">=6.1.1" },
+    { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.0" },
+    { name = "django-ninja", specifier = ">=1.7.1" },
+    { name = "gunicorn", specifier = ">=23,<24" },
+    { name = "ruff", specifier = ">=0.16.9" },
+    { name = "ty", specifier = ">=0.0.84" },
+    { name = "whitenoise", specifier = ">=6.0" },
+]
+main = [
     { name = "django", specifier = ">=6.1.1" },
     { name = "django-allauth", extras = ["socialaccount"], specifier = ">=65.0" },
     { name = "django-ninja", specifier = ">=1.7.1" },
     { name = "gunicorn", specifier = ">=23,<24" },
     { name = "whitenoise", specifier = ">=6.0" },
-]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "ruff", specifier = ">=0.16.9" },
-    { name = "ty", specifier = ">=0.0.84" },
 ]
 
 [[package]]

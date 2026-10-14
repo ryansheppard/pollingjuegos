@@ -1,0 +1,30 @@
+manifest:
+  modules_mapping:
+    allauth: django_allauth
+    annotated_types: annotated_types
+    asgiref: asgiref
+    certifi: certifi
+    cffi: cffi
+    charset_normalizer: charset_normalizer
+    cryptography: cryptography
+    django: django
+    gunicorn: gunicorn
+    idna: idna
+    jwt: pyjwt
+    ninja: django_ninja
+    oauthlib: oauthlib
+    packaging: packaging
+    pycparser: pycparser
+    pydantic: pydantic
+    pydantic_core: pydantic_core
+    requests: requests
+    ruff: ruff
+    sqlparse: sqlparse
+    ty: ty
+    typing_extensions: typing_extensions
+    typing_inspection: typing_inspection
+    tzdata: tzdata
+    urllib3: urllib3
+    whitenoise: whitenoise
+  pip_repository:
+    name: pypi
