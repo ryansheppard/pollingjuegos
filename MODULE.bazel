@@ -1,6 +1,8 @@
 bazel_dep(name = "aspect_gazelle_prebuilt", version = "0.0.26")
 bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.8")
 bazel_dep(name = "rules_img", version = "0.3.23")
+bazel_dep(name = "aspect_rules_js", version = "3.5.1")
+bazel_dep(name = "bazel_lib", version = "3.7.2")
 
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(
@@ -23,7 +25,29 @@ use_repo(interpreters, "python_interpreters")
 
 register_toolchains("@python_interpreters//:all")
 
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm",
+    data = ["//frontend:pnpm-workspace.yaml"],
+    pnpm_lock = "//frontend:pnpm-lock.yaml",
+    public_hoist_packages = {
+        "@vue/reactivity": ["frontend"],
+        "@vue/runtime-core": ["frontend"],
+        "@vue/runtime-dom": ["frontend"],
+        "@vue/shared": ["frontend"],
+    },
+)
+use_repo(npm, "npm")
+
 pull = use_repo_rule("@rules_img//img:pull.bzl", "pull")
+
+pull(
+    name = "caddy",
+    digest = "sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f",
+    registry = "docker.io",
+    repository = "library/caddy",
+    tag = "2.11.7-alpine",
+)
 
 pull(
     name = "distroless_cc",
