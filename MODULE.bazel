@@ -10,8 +10,8 @@ uv.declare_hub(
 )
 uv.project(
     hub_name = "pypi",
-    lock = "//backend:uv.lock",
-    pyproject = "//backend:pyproject.toml",
+    lock = "//:uv.lock",
+    pyproject = "//:pyproject.toml",
 )
 use_repo(uv, "pypi")
 

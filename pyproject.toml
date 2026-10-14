@@ -17,7 +17,7 @@ main = [
 dev = ["ruff>=0.16.9", "ty>=0.0.84", { include-group = "main" }]
 
 [tool.ruff]
-extend-exclude = ["polls/migrations"]
+extend-exclude = ["backend/polls/migrations"]
 
 [tool.ty.src]
-exclude = ["polls/migrations"]
+exclude = ["backend/polls/migrations"]
