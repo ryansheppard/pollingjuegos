@@ -78,6 +78,7 @@ py_test(
 py_binary(
     name = "server",  # keep
     srcs = ["server.py"],
+    imports = ["."],  #keep
     main = "server.py",
     visibility = ["//backend:__subpackages__"],
     deps = [

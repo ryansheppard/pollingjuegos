@@ -3,8 +3,9 @@ Description=Back up pollingjuegos SQLite database
 
 [Service]
 Type=oneshot
-User=pollingjuegos
-Group=pollingjuegos
+# Match the distroless backend's nonroot UID/GID, which owns the SQLite files.
+User=65532
+Group=65532
 ExecStart=/usr/local/bin/pollingjuegos-backup
 UMask=0077
 NoNewPrivileges=true
