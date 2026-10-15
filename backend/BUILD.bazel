@@ -1,0 +1,137 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_image_layer", "py_library", "py_test")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:load.bzl", "image_load")
+load("@rules_img//img:push.bzl", "image_push")
+load("//tools:collectstatic.bzl", "collectstatic")
+
+# gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_binary py_binary @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_test py_test @aspect_rules_py//py:defs.bzl
+# gazelle:python_root
+# gazelle:python_generation_mode project
+
+py_binary(
+    name = "manage",
+    srcs = ["manage.py"],
+    imports = ["."],  # keep
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        ":backend",  # keep
+        "@pypi//django",
+    ],
+)
+
+py_library(
+    name = "backend",
+    srcs = [
+        "config/__init__.py",
+        "config/asgi.py",
+        "config/auth.py",
+        "config/settings.py",
+        "config/social.py",
+        "config/tests.py",
+        "config/urls.py",
+        "config/wsgi.py",
+        "manage.py",
+        "polls/__init__.py",
+        "polls/admin.py",
+        "polls/api.py",
+        "polls/apps.py",
+        "polls/migrations/0001_initial.py",
+        "polls/migrations/0002_approveddiscorduser.py",
+        "polls/migrations/0003_seed_teams_and_quarterbacks.py",
+        "polls/migrations/0004_pollweek_closes_at.py",
+        "polls/migrations/__init__.py",
+        "polls/models.py",
+        "polls/tests.py",
+        "polls/views.py",
+        "server.py",
+    ],
+    data = glob(["templates/**"]),  # keep
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        "@pypi//django",
+        "@pypi//django_allauth",
+        "@pypi//django_ninja",
+        "@pypi//gunicorn",
+        "@pypi//whitenoise",  # keep
+    ],
+)
+
+py_test(
+    name = "backend_test",
+    size = "small",
+    srcs = [
+        "polls/test_api.py",
+        "test_runner.py",
+    ],
+    imports = ["."],
+    main = "test_runner.py",
+    deps = [
+        ":backend",  # keep
+        "@pypi//django",
+        "@pypi//django_allauth",
+    ],
+)
+
+py_binary(
+    name = "server",  # keep
+    srcs = ["server.py"],
+    imports = ["."],  #keep
+    main = "server.py",
+    visibility = ["//backend:__subpackages__"],
+    deps = [
+        ":backend",  # keep
+        "@pypi//gunicorn",
+    ],
+)
+
+py_image_layer(
+    name = "python_layers",
+    binaries = [
+        ":server",
+        ":manage",
+    ],
+    launcher_dir = "/app/bin",
+)
+
+collectstatic(
+    name = "collected_static",
+    tool = ":manage",
+)
+
+image_layer(
+    name = "static_layer",
+    srcs = {"/app/static": ":collected_static"},
+)
+
+image_manifest(
+    name = "image",
+    base = "@distroless_cc",
+    entrypoint = ["/app/bin/server"],
+    env = {
+        "RUNFILES_DIR": "/app.runfiles",
+        "DJANGO_STATIC_ROOT": "/app/static",
+    },
+    layers = [
+        ":static_layer",
+        ":python_layers",
+    ],
+)
+
+image_load(
+    name = "load",
+    daemon = "podman",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+    tag = "latest",
+)
+
+image_push(
+    name = "push",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+)

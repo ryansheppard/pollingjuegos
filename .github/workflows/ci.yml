@@ -9,38 +9,45 @@ permissions:
   contents: read
 
 jobs:
-  checks:
-    name: Checks
+  lint:
+    name: Run linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4
-        with:
-          install_args: uv hk gitleaks taplo node pnpm
-      - run: uv sync --locked
+          submodules: recursive
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
       - run: hk check --all
-      - run: mise run test
-      - run: pnpm install --frozen-lockfile
-        working-directory: frontend
-      - run: pnpm build
-        working-directory: frontend
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+        with:
+          disk-cache: ${{ github.workflow }}
+          repository-cache: true
+      - run: bazel test //... --test_output=errors
 
   publish:
     name: Publish images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [checks]
+    needs: [lint, test]
     runs-on: ubuntu-latest
     environment: production
     concurrency:
       group: publish-main
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # v2.5.2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
       - name: Log in to DigitalOcean Container Registry
@@ -49,13 +56,8 @@ jobs:
         run: |
           set -euo pipefail
           release="${GITHUB_SHA::12}"
-          repository=registry.digitalocean.com/pollingjuegos/backend
-          docker build -f deploy/Dockerfile.backend \
-            -t "$repository:backend-$release" .
-          docker build -f deploy/Dockerfile.frontend \
-            -t "$repository:frontend-$release" .
-          docker push "$repository:backend-$release"
-          docker push "$repository:frontend-$release"
+          bazel run //backend:push -- -tag "backend-$release"
+          bazel run //frontend:push -- -tag "frontend-$release"
           echo "Published $release" >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
@@ -68,7 +70,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd
+      - uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}

@@ -1,4 +1,5 @@
 [tools]
+bazel = "9.3.0"
 doctl = "1.175.0"
 gitleaks = "8.30.1"
 hk = "2.3.1"
@@ -7,18 +8,5 @@ pnpm = "12.7.0"
 taplo = "0.10.0"
 terraform = "1.16.4"
 uv = "0.12.19"
-
-[tasks."build:backend"]
-description = "Build the production Django image with Podman"
-run = "podman build -f deploy/Dockerfile.backend -t pollingjuegos-backend:local ."
-
-[tasks."build:frontend"]
-description = "Build the production pnpm/Caddy image with Podman"
-run = "podman build -f deploy/Dockerfile.frontend -t pollingjuegos-frontend:local ."
-
-[tasks.build]
-description = "Build both production images"
-depends = ["build:backend", "build:frontend"]
-
-[tasks.test]
-run = "uv run manage.py test"
+python = "3.14.8"
+pinact = "5.0.0"

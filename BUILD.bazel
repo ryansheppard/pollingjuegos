@@ -1,0 +1,16 @@
+load("@aspect_gazelle_prebuilt//:def.bzl", "aspect_gazelle")
+load("@aspect_rules_py//uv:defs.bzl", "gazelle_python_manifest")
+
+aspect_gazelle(
+    name = "gazelle",
+    languages = [
+        "python",
+    ],
+)
+
+gazelle_python_manifest(
+    name = "gazelle_python_manifest",
+    hub = "pypi",
+    include_stub_packages = True,
+    venvs = ["dev"],
+)

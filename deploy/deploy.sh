@@ -23,8 +23,9 @@ compose=(docker compose -f "$compose_file")
 # Do all downloads before interrupting the running backend.
 "${compose[@]}" pull
 "${compose[@]}" stop backend
-"${compose[@]}" run --rm --no-deps backend \
-  /app/.venv/bin/python manage.py migrate --noinput
+"${compose[@]}" run --rm --no-deps \
+  --entrypoint /app/bin/manage \
+  backend migrate --noinput
 "${compose[@]}" up -d
 "${compose[@]}" ps
 

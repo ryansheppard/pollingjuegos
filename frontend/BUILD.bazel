@@ -1,0 +1,97 @@
+load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
+load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//frontend:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//frontend:vue-tsc/package_json.bzl", vue_tsc_bin = "bin")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "image_layer")
+load("@rules_img//img:load.bzl", "image_load")
+load("@rules_img//img:push.bzl", "image_push")
+
+npm_link_all_packages(name = "node_modules")
+
+_FRONTEND_INPUTS = glob(["src/**"]) + glob(
+    ["public/**"],
+    allow_empty = True,
+) + [
+    "index.html",
+    "package.json",
+    "tsconfig.json",
+    "vite.config.ts",
+]
+
+copy_to_directory(
+    name = "vite_sources",
+    srcs = _FRONTEND_INPUTS,
+)
+
+vite_bin.vite_binary(
+    name = "vite",
+    data = [":node_modules"],
+)
+
+js_run_binary(
+    name = "dist",
+    srcs = [
+        ":node_modules",
+        ":vite_sources",
+    ],
+    args = [
+        "build",
+        "vite_sources",
+        "--outDir",
+        "../dist",
+        "--emptyOutDir",
+    ],
+    chdir = package_name(),
+    mnemonic = "ViteBuild",
+    out_dirs = ["dist"],
+    tool = ":vite",
+)
+
+vue_tsc_bin.vue_tsc_test(
+    name = "typecheck",
+    size = "small",
+    args = [
+        "--noEmit",
+        "--project",
+        "tsconfig.json",
+    ],
+    chdir = package_name(),
+    data = _FRONTEND_INPUTS + [":node_modules"],
+)
+
+image_layer(
+    name = "site_layer",
+    srcs = {"/srv": ":dist"},
+)
+
+image_layer(
+    name = "caddy_config_layer",
+    srcs = {"/etc/caddy/Caddyfile": "//deploy:Caddyfile.container"},
+)
+
+image_manifest(
+    name = "image",
+    base = "@caddy",
+    layers = [
+        ":caddy_config_layer",
+        ":site_layer",
+    ],
+)
+
+image_load(
+    name = "load",
+    daemon = "podman",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+    tag = "frontend-local",
+)
+
+image_push(
+    name = "push",
+    image = ":image",
+    registry = "registry.digitalocean.com",
+    repository = "pollingjuegos/backend",
+)

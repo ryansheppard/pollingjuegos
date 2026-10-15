@@ -1,7 +1,6 @@
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth.backends import ModelBackend
 from django.http import JsonResponse
-
 from polls.models import ApprovedDiscordUser
 
 
