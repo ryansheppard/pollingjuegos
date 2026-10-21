@@ -51,7 +51,7 @@ pull(
 
 pull(
     name = "distroless_cc",
-    digest = "sha256:e792ab3d241a468a4fd7519ddbbebe66b49b5f365771716ea688ad40b6c6f1c2",
+    digest = "sha256:fe0b0247194032fa4c87259517e9686de4526f08caddbf169957264d06048a70",
     registry = "gcr.io",
     repository = "distroless/cc-debian13",
     tag = "nonroot",
