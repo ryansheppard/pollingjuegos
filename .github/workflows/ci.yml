@@ -13,24 +13,35 @@ jobs:
     name: Run linting
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: recursive
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
       - run: hk check --all
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ failure() }}
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Linting failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
   test:
     name: Run tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           submodules: recursive
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
         with:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
       - run: bazel test //... --test_output=errors
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ failure() }}
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Tests failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   publish:
     name: Publish images
@@ -42,12 +53,12 @@ jobs:
       group: publish-main
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c # v4.3.0
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
-      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f # v2.5.2
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f  # v2.5.2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
       - name: Log in to DigitalOcean Container Registry
@@ -59,6 +70,11 @@ jobs:
           bazel run //backend:push -- -tag "backend-$release"
           bazel run //frontend:push -- -tag "frontend-$release"
           echo "Published $release" >> "$GITHUB_STEP_SUMMARY"
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ failure() }}
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Building or pushing containers failed"
 
   deploy:
     name: Deploy droplet
@@ -70,7 +86,7 @@ jobs:
       group: deploy-production
       cancel-in-progress: false
     steps:
-      - uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd # v4.2.0
+      - uses: tailscale/github-action@d1b6cd204f8dceda5b3eaad7f1f767be390056cd  # v4.2.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
@@ -94,3 +110,14 @@ jobs:
             "deploy@$DEPLOY_HOST" \
             "sudo -n /usr/local/bin/pollingjuegos-deploy $release"
           echo "Deployed $release" >> "$GITHUB_STEP_SUMMARY"
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ failure() }}
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Deploying to the droplet failed"
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ success() }}
+        continue-on-error: true
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Deployed to the droplet successfully"
