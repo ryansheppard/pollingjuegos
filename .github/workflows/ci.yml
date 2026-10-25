@@ -117,6 +117,7 @@ jobs:
           content: "Deploying to the droplet failed"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ success() }}
+        continue-on-error: true
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           content: "Deployed to the droplet successfully"
