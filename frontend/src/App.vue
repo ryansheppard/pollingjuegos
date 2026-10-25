@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type Rankings, type Week } from './api'
 import SaveBar from './components/SaveBar.vue'
 
@@ -20,6 +20,8 @@ const now = ref(Date.now())
 const tab = ref<'ballot' | 'results'>('ballot')
 const openSlot = ref<number | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
+const removed = ref<{ qb: Quarterback, index: number } | null>(null)
+const dragIndex = ref<number | null>(null)
 let clock: ReturnType<typeof setInterval> | undefined
 document.documentElement.dataset.theme = theme.value
 let loadId = 0
@@ -74,11 +76,63 @@ function focusSearch() {
   searchInput.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   searchInput.value?.focus({ preventScroll: true })
 }
+async function onSearchHotkey(event: KeyboardEvent) {
+  if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return
+  const target = event.target as HTMLElement | null
+  if (target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')) return
+  event.preventDefault()
+  tab.value = 'ballot'
+  await nextTick()
+  focusSearch()
+}
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function removeAt(index: number) {
-  ballot.value.splice(index, 1)
+  const [qb] = ballot.value.splice(index, 1)
   openSlot.value = null
   message.value = ''
+  removed.value = qb ? { qb, index } : null
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+const canUndo = computed(() => !!removed.value && !closed.value && ballot.value.length < 15 &&
+  !ballot.value.some((qb) => qb.id === removed.value?.qb.id))
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+function undoRemove() {
+  if (!removed.value || !canUndo.value || saving.value) return
+  ballot.value.splice(Math.min(removed.value.index, ballot.value.length), 0, removed.value.qb)
+  removed.value = null
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+function startDrag(event: PointerEvent, index: number) {
+  if (closed.value || saving.value || event.button !== 0) return
+  event.preventDefault()
+  dragIndex.value = index
+  openSlot.value = null
+  // Listen on window rather than capturing the pointer: Vue moves the row's DOM node as it reorders, which drops capture.
+  window.addEventListener('pointermove', dragMove)
+  window.addEventListener('pointerup', endDrag)
+  window.addEventListener('pointercancel', endDrag)
+}
+function dragMove(event: PointerEvent) {
+  const from = dragIndex.value
+  if (from === null) return
+  // Touch drags disable native scrolling, so nudge the page when the finger nears an edge.
+  if (event.clientY < 60) window.scrollBy(0, -12)
+  else if (event.clientY > window.innerHeight - 60) window.scrollBy(0, 12)
+  const row = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>('[data-slot]')
+  const to = row ? Number(row.dataset.slot) : from
+  if (to === from) return
+  const entries = [...ballot.value]
+  entries.splice(to, 0, entries.splice(from, 1)[0]!)
+  ballot.value = entries
+  dragIndex.value = to
+  message.value = ''
+  removed.value = null
+}
+function endDrag() {
+  dragIndex.value = null
+  window.removeEventListener('pointermove', dragMove)
+  window.removeEventListener('pointerup', endDrag)
+  window.removeEventListener('pointercancel', endDrag)
 }
 const draftKey = computed(() => userId.value === null || !week.value ? null : `pollingjuegos-draft-${userId.value}-${week.value.season}-${week.value.week}`)
 const disagreements = computed(() => {
@@ -90,6 +144,8 @@ const disagreements = computed(() => {
     .sort((a, b) => Math.abs(b.mine - (b.theirs ?? 11)) - Math.abs(a.mine - (a.theirs ?? 11))).slice(0, 3)
 })
 function sameIds(a: number[], b: number[]) { return a.length === b.length && a.every((id, index) => id === b[index]) }
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+const dirty = computed(() => !sameIds(ballot.value.map((qb) => qb.id), savedIds.value))
 function draftStorage() { try { return window.localStorage } catch { return null } }
 watch(ballot, () => {
   const key = draftKey.value
@@ -104,9 +160,12 @@ const topScore = computed(() => rankings.value?.rankings[0]?.points || 1)
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const available = computed(() => {
   const selectedIds = new Set(ballot.value.map((qb) => qb.id))
-  const query = search.value.trim().toLowerCase()
-  return catalog.value.filter((qb) => !selectedIds.has(qb.id) &&
-    `${qb.name} ${qb.team?.name ?? ''} ${qb.team?.abbreviation ?? ''}`.toLowerCase().includes(query))
+  const terms = search.value.trim().toLowerCase().split(/\s+/)
+  return catalog.value.filter((qb) => {
+    if (selectedIds.has(qb.id)) return false
+    const haystack = `${qb.name} ${qb.team?.name ?? ''} ${qb.team?.abbreviation ?? ''}`.toLowerCase()
+    return terms.every((term) => haystack.includes(term))
+  })
 })
 
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
@@ -119,7 +178,19 @@ function addQuarterback(qb: Quarterback) {
   if (saving.value || ballot.value.length >= 15 || ballot.value.some((entry) => entry.id === qb.id)) return
   if (qb.name.trim().toLowerCase() === 'cam ward' && !window.confirm('Are you sure?')) return
   ballot.value.push(qb)
+  search.value = ''
   message.value = ''
+  removed.value = null
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+function addTopMatch() {
+  const top = available.value[0]
+  if (top && search.value.trim() && !closed.value) addQuarterback(top)
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+function onSearchEscape() {
+  if (search.value) search.value = ''
+  else searchInput.value?.blur()
 }
 
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
@@ -129,6 +200,7 @@ function move(index: number, direction: number) {
   ballot.value = entries
   if (openSlot.value === index) openSlot.value = index + direction
   message.value = ''
+  removed.value = null
 }
 
 async function loadWeek() {
@@ -138,6 +210,7 @@ async function loadWeek() {
   savedIds.value = []
   ballot.value = []
   openSlot.value = null
+  removed.value = null
   error.value = ''
   message.value = ''
   if (!current) return
@@ -182,6 +255,7 @@ async function submit() {
   saving.value = true
   error.value = ''
   message.value = ''
+  removed.value = null
   try {
     const result = await saveBallot(current, ballot.value.map((qb) => qb.id))
     ballot.value = result.entries.map((entry) => entry.quarterback)
@@ -213,6 +287,7 @@ async function copyPrevious() {
     if (!last.entries.length) { message.value = 'You did not submit a ballot last week.'; return }
     const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
     ballot.value = last.entries.map((entry) => byId.get(entry.quarterback.id)).filter((qb): qb is Quarterback => !!qb)
+    removed.value = null
     message.value = 'Copied last week’s picks. Review and save to submit this week.'
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not copy last week’s ballot.'
@@ -251,8 +326,13 @@ async function shareResults() {
 }
 
 watch(selected, loadWeek)
-onUnmounted(() => { if (clock) clearInterval(clock) })
+onUnmounted(() => {
+  if (clock) clearInterval(clock)
+  window.removeEventListener('keydown', onSearchHotkey)
+  endDrag()
+})
 onMounted(async () => {
+  window.addEventListener('keydown', onSearchHotkey)
   clock = setInterval(() => { now.value = Date.now() }, 30_000)
   try {
     const [weekList, qbs, me] = await Promise.all([request<Week[]>('/weeks'), loadQuarterbacks(), request<{ id: number }>('/me')])
@@ -329,6 +409,10 @@ onMounted(async () => {
   <main>
     <p v-if="error" class="notice error" role="alert">{{ error }}</p>
     <p v-if="message" class="notice success" role="status">{{ message }}</p>
+    <p v-if="removed && tab === 'ballot'" class="notice undo" role="status">
+      <span>Removed {{ removed.qb.name }}.</span>
+      <button v-if="canUndo" type="button" class="undo-button" :disabled="saving" @click="undoRemove">Undo</button>
+    </p>
     <p v-if="loading" class="notice loading" role="status">Loading the field…</p>
     <p v-else-if="!weeks.length" class="notice loading">No weeks have been created yet.</p>
 
@@ -346,8 +430,11 @@ onMounted(async () => {
         </div>
 
         <ol class="slot-list">
-          <li v-for="(qb, index) in ballot" :key="qb.id" class="slot" :class="{ 'is-open': openSlot === index }">
+          <li v-for="(qb, index) in ballot" :key="qb.id" class="slot" :class="{ 'is-open': openSlot === index, dragging: dragIndex === index }" :data-slot="index">
             <div class="slot-row">
+              <span v-if="!closed" class="drag-handle" aria-hidden="true" title="Drag to reorder" @pointerdown="startDrag($event, index)">
+                <svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="18" r="1" /></svg>
+              </span>
               <span class="slot-number" :class="{ podium: index < 3 }" aria-hidden="true">{{ String(index + 1).padStart(2, '0') }}</span>
               <span class="slot-name">
                 <span class="player-name">{{ qb.name }}</span>
@@ -383,7 +470,7 @@ onMounted(async () => {
           </li>
         </ol>
 
-        <SaveBar class="save-bar-inline" :count="ballot.length" :closed="closed" :saving="saving" @add="focusSearch" @save="submit" />
+        <SaveBar class="save-bar-inline" :count="ballot.length" :closed="closed" :saving="saving" :dirty="dirty" :has-saved="savedIds.length > 0" @add="focusSearch" @save="submit" />
       </section>
 
       <section class="panel pool-panel" aria-labelledby="add-title">
@@ -395,7 +482,8 @@ onMounted(async () => {
           <label class="field-label" for="search">Search by name or team</label>
           <div class="search-wrap">
             <svg aria-hidden="true" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-            <input id="search" ref="searchInput" v-model="search" type="search" placeholder="Allen, BUF, Bills…" />
+            <input id="search" ref="searchInput" v-model="search" type="search" placeholder="Allen, BUF, Bills…" aria-keyshortcuts="/" @keydown.enter.prevent="addTopMatch" @keydown.esc.prevent="onSearchEscape" />
+            <kbd class="search-key" aria-hidden="true">/</kbd>
           </div>
         </div>
         <p v-if="!available.length" class="empty-state">No match. Don't see your quarterback? Too bad.</p>
@@ -411,7 +499,7 @@ onMounted(async () => {
       </section>
 
       <!-- Mobile copy sits outside both panels so it stays stuck while scrolling the pool. -->
-      <SaveBar class="save-bar-mobile" :count="ballot.length" :closed="closed" :saving="saving" @add="focusSearch" @save="submit" />
+      <SaveBar class="save-bar-mobile" :count="ballot.length" :closed="closed" :saving="saving" :dirty="dirty" :has-saved="savedIds.length > 0" @add="focusSearch" @save="submit" />
     </div>
 
     <div v-else id="panel-results" class="layout" role="tabpanel" aria-labelledby="tab-results">
