@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type Rankings, type Week } from './api'
+import SaveBar from './components/SaveBar.vue'
 
 const weeks = ref<Week[]>([])
 const selected = ref('')
@@ -382,23 +383,7 @@ onMounted(async () => {
           </li>
         </ol>
 
-        <div class="save-bar">
-          <div class="ticks" role="progressbar" :aria-valuenow="ballot.length" aria-valuemin="0" aria-valuemax="15" aria-label="Ballot picks selected">
-            <span v-for="n in 15" :key="n" :class="{ filled: n <= ballot.length }"></span>
-          </div>
-          <div class="save-row">
-            <p class="save-hint">{{ ballot.length === 15 ? 'Lineup complete. Ready to save.' : `${15 - ballot.length} more ${15 - ballot.length === 1 ? 'pick' : 'picks'} to complete your ballot.` }}</p>
-            <div class="save-actions">
-              <button v-if="!closed && ballot.length < 15" type="button" class="secondary-button add-jump" @click="focusSearch">
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg> Add QB
-              </button>
-              <button type="button" class="save-button" :disabled="ballot.length !== 15 || saving || closed" @click="submit">
-                {{ saving ? 'Saving…' : closed ? 'Voting closed' : 'Save ballot' }}
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-              </button>
-            </div>
-          </div>
-        </div>
+        <SaveBar class="save-bar-inline" :count="ballot.length" :closed="closed" :saving="saving" @add="focusSearch" @save="submit" />
       </section>
 
       <section class="panel pool-panel" aria-labelledby="add-title">
@@ -424,6 +409,9 @@ onMounted(async () => {
           </li>
         </ul>
       </section>
+
+      <!-- Mobile copy sits outside both panels so it stays stuck while scrolling the pool. -->
+      <SaveBar class="save-bar-mobile" :count="ballot.length" :closed="closed" :saving="saving" @add="focusSearch" @save="submit" />
     </div>
 
     <div v-else id="panel-results" class="layout" role="tabpanel" aria-labelledby="tab-results">

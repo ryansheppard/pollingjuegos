@@ -210,6 +210,7 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 .save-hint { margin: 0; color: var(--ink-2); font-size: .88rem; font-weight: 600; }
 .save-actions { display: flex; gap: .5rem; }
 .add-jump { display: none; }
+.save-bar-mobile { display: none; }
 
 /* Pool */
 .pool-head { display: flex; flex-direction: column; gap: .75rem; padding: 1.25rem 1.25rem 1rem; border-bottom: 1px solid var(--line); }
@@ -288,7 +289,9 @@ footer span { margin: 0 .35rem; }
   .control-label { display: inline; }
   .open-slot-extra { display: none; }
 
-  .save-bar { position: sticky; bottom: 0; z-index: 2; padding: .75rem .75rem 1rem; background: var(--surface); border-top: 1px solid var(--line-2); box-shadow: var(--sticky-shadow); }
+  .ballot-panel .slot:last-child { border-bottom: 0; }
+  .save-bar-inline { display: none; }
+  .save-bar-mobile { display: flex; flex-basis: 100%; position: sticky; bottom: 0; z-index: 2; padding: .75rem .75rem 1rem; background: var(--surface); border: 1px solid var(--line-2); border-radius: 10px; box-shadow: var(--sticky-shadow); }
   .save-hint { display: none; }
   .save-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
   .add-jump { display: inline-flex; justify-content: center; min-height: 48px; }
