@@ -156,6 +156,9 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 .error { background: var(--error-bg); color: var(--error-ink); }
 .success { background: var(--success-bg); color: var(--success-ink); }
 .loading { background: var(--surface); color: var(--muted); font-weight: 500; }
+.undo { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding-block: .5rem; background: var(--surface-2); color: var(--ink-2); }
+.undo-button { min-height: 36px; padding: 0 .9rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: .82rem; font-weight: 700; }
+.undo-button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent-text); }
 .empty-state { margin: 0; padding: 1.5rem 1.25rem; color: var(--muted); font-size: .9rem; line-height: 1.6; }
 .empty-state.padded { padding: 1.5rem; }
 
@@ -182,6 +185,12 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 .slot { border-bottom: 1px solid var(--line); }
 .slot:not(.empty):hover, .pool-list li:hover { background: var(--hover); }
 .slot.is-open { background: var(--hover); }
+.slot.dragging { z-index: 1; background: var(--hover); box-shadow: var(--shadow); }
+/* Sits in the row's left padding so filled and empty slots keep their numbers aligned. */
+.slot { position: relative; }
+.drag-handle { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 1.5rem; height: 44px; color: var(--subtle); cursor: grab; touch-action: none; user-select: none; }
+.drag-handle svg { width: 18px; height: 18px; fill: currentColor; }
+.slot.dragging .drag-handle { cursor: grabbing; color: var(--ink); }
 .slot-row { display: flex; align-items: center; gap: .85rem; min-height: 56px; padding: 6px 1rem 6px 1.5rem; }
 .slot-number, .rank-number { font-family: 'Barlow Condensed', Impact, sans-serif; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
 .slot-number { width: 2.4rem; flex-shrink: 0; font-size: 1.65rem; color: var(--ink); }
@@ -221,6 +230,9 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 .search-wrap svg { position: absolute; left: 14px; top: 15px; color: var(--subtle); stroke-width: 2; }
 .search-wrap input { width: 100%; min-height: 46px; padding: 0 .9rem 0 2.5rem; border: 1px solid var(--control-line); border-radius: 6px; background: var(--surface); color: var(--ink); font-size: .95rem; scroll-margin-top: 1rem; }
 .search-wrap input::placeholder { color: var(--subtle); }
+.search-key { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); padding: .05rem .45rem; border: 1px solid var(--control-line); border-radius: 4px; background: var(--surface-2); color: var(--subtle); font: 600 .75rem/1.4 ui-monospace, monospace; pointer-events: none; }
+.search-wrap input:focus + .search-key, .search-wrap input:not(:placeholder-shown) + .search-key { display: none; }
+@media (hover: none) { .search-key { display: none; } }
 .pool-list { max-height: 820px; overflow-y: auto; }
 .pool-list li { display: flex; align-items: center; gap: .75rem; min-height: 56px; padding: 6px .75rem 6px 1.25rem; border-bottom: 1px solid var(--line); }
 .pool-list .player-name { flex: 1; font-weight: 600; }
@@ -274,7 +286,9 @@ footer span { margin: 0 .35rem; }
   .panel-heading { padding: 1rem 1rem .85rem; }
 
   /* Rows collapse to one edit button that reveals labelled controls. */
-  .slot-row { gap: .6rem; padding: 4px 4px 4px .9rem; }
+  .slot-row { gap: .6rem; padding: 4px 4px 4px 1.75rem; }
+  .drag-handle { width: 1.75rem; }
+  .slot.is-open .drag-handle { top: 28px; }
   .slot-number { width: 1.9rem; font-size: 1.45rem; }
   .slot-name { flex-direction: column; gap: 1px; }
   .crowd-chip { display: none; }
