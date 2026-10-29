@@ -93,8 +93,8 @@ py_binary(
 py_layer_tier(
     name = "layer_tier",
     groups = {
-        "@pip//polars_runtime_32": "polars",
-        "@pip//polars": "polars",
+        "@pypi//polars_runtime_32": "polars",
+        "@pypi//polars": "polars",
     },
 )
 
