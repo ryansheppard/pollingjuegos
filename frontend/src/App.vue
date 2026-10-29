@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type Rankings, type Week } from './api'
+import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type QuarterbackStats, type QuarterbackWithStats, type Rankings, type Week } from './api'
 import SaveBar from './components/SaveBar.vue'
 
 const weeks = ref<Week[]>([])
 const selected = ref('')
-const catalog = ref<Quarterback[]>([])
+const catalog = ref<QuarterbackWithStats[]>([])
 const ballot = ref<Quarterback[]>([])
 const rankings = ref<Rankings | null>(null)
 const search = ref('')
@@ -173,6 +173,18 @@ function label(qb: Quarterback) {
   return `${qb.name}${qb.team ? ` (${qb.team.abbreviation})` : ''}`
 }
 
+function signed(value: number, digits: number) {
+  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(digits)}`
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+function statLine(stats: QuarterbackStats) {
+  return [
+    { key: 'qbr', label: 'QBR', title: 'ESPN Total QBR', value: stats.qbr === null ? '—' : stats.qbr.toFixed(1) },
+    { key: 'epa', label: 'EPA', title: `EPA per dropback (${stats.epa === null ? '—' : signed(stats.epa, 1)} total over ${stats.dropbacks} dropbacks)`, value: stats.epa_per_dropback === null ? '—' : signed(stats.epa_per_dropback, 2) },
+    { key: 'cpoe', label: 'CPOE', title: 'Completion % over expected', value: stats.cpoe === null ? '—' : signed(stats.cpoe, 1) },
+  ]
+}
+
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function addQuarterback(qb: Quarterback) {
   if (saving.value || ballot.value.length >= 15 || ballot.value.some((entry) => entry.id === qb.id)) return
@@ -286,7 +298,7 @@ async function copyPrevious() {
     const last = await request<Ballot>(`/weeks/${prev.season}/${prev.week}/ballot`)
     if (!last.entries.length) { message.value = 'You did not submit a ballot last week.'; return }
     const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
-    ballot.value = last.entries.map((entry) => byId.get(entry.quarterback.id)).filter((qb): qb is Quarterback => !!qb)
+    ballot.value = last.entries.map((entry) => byId.get(entry.quarterback.id)).filter((qb): qb is QuarterbackWithStats => !!qb)
     removed.value = null
     message.value = 'Copied last week’s picks. Review and save to submit this week.'
   } catch (err) {
@@ -490,7 +502,14 @@ onMounted(async () => {
         <ul v-else class="pool-list">
           <li v-for="qb in available" :key="qb.id">
             <span class="team-badge">{{ qb.team?.abbreviation ?? 'FA' }}</span>
-            <span class="player-name">{{ qb.name }}</span>
+            <span class="pool-player">
+              <span class="player-name">{{ qb.name }}</span>
+              <dl v-if="qb.stats" class="qb-stats" :title="`${qb.stats.season} season · ${qb.stats.games} ${qb.stats.games === 1 ? 'game' : 'games'}`">
+                <div v-for="stat in statLine(qb.stats)" :key="stat.key" :title="stat.title">
+                  <dt>{{ stat.label }}</dt><dd>{{ stat.value }}</dd>
+                </div>
+              </dl>
+            </span>
             <button type="button" class="add-button" :disabled="ballot.length >= 15 || saving || closed" :aria-label="`Add ${qb.name}`" @click="addQuarterback(qb)">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg> Add
             </button>
