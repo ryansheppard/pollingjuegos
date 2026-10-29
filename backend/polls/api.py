@@ -11,6 +11,7 @@ from django.utils import timezone
 from ninja import NinjaAPI, Schema
 from ninja.security import django_auth
 
+from . import nfl_stats
 from .models import Ballot, PollWeek, Quarterback, Team, Vote
 
 api = NinjaAPI(
@@ -31,6 +32,21 @@ class QuarterbackOut(Schema):
     id: int
     name: str
     team: TeamOut | None
+
+
+class QuarterbackStatsOut(Schema):
+    season: int
+    games: int
+    dropbacks: int
+    epa: float | None
+    epa_per_dropback: float | None
+    cpoe: float | None
+    qbr: float | None
+
+
+class QuarterbackWithStatsOut(QuarterbackOut):
+    # Season-to-date including playoffs; null when nflverse has no line for this QB.
+    stats: QuarterbackStatsOut | None
 
 
 class WeekOut(Schema):
@@ -109,7 +125,7 @@ def list_teams(request):
     return Team.objects.order_by("name")
 
 
-@api.get("/quarterbacks", response={200: list[QuarterbackOut], 400: ErrorOut})
+@api.get("/quarterbacks", response={200: list[QuarterbackWithStatsOut], 400: ErrorOut})
 def list_quarterbacks(
     request, q: str = "", team_id: int | None = None, limit: int = 50, offset: int = 0
 ):
@@ -129,7 +145,10 @@ def list_quarterbacks(
         )
     if team_id is not None:
         qbs = qbs.filter(team_id=team_id)
-    return [qb_out(qb) for qb in qbs[offset : offset + limit]]
+    return [
+        {**qb_out(qb), "stats": nfl_stats.stats_for(qb.name)}
+        for qb in qbs[offset : offset + limit]
+    ]
 
 
 @api.get("/weeks", response=list[WeekOut])

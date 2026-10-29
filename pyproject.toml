@@ -12,6 +12,7 @@ main = [
   "django-allauth[socialaccount]>=65.0",
   "django-ninja>=1.7.1",
   "gunicorn>=23,<24",
+  "nflreadpy>=0.1.5",
   "whitenoise>=6.0",
 ]
 dev = ["ruff>=0.16.9", "ty>=0.0.84", { include-group = "main" }]

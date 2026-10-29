@@ -1,16 +1,22 @@
 import json
 from datetime import timedelta
+from unittest import mock
 
 from allauth.socialaccount.models import SocialAccount
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.utils import timezone
 
+from . import nfl_stats
 from .models import ApprovedDiscordUser, Ballot, PollWeek, Quarterback, Vote
 
 
 class PollAPITests(TestCase):
     def setUp(self):
+        self.load_stats = self.enterContext(
+            mock.patch.object(nfl_stats, "_load", return_value={})
+        )
+        self.enterContext(mock.patch.object(nfl_stats, "_cached", None))
         self.week = PollWeek.objects.create(season=2026, week=1)
         self.qbs = list(Quarterback.objects.order_by("id")[:16])
         self.user = self.make_user("voter", "1234")
@@ -76,6 +82,29 @@ class PollAPITests(TestCase):
         self.assertEqual(
             self.client.get("/api/quarterbacks", {"limit": 101}).status_code, 400
         )
+
+    def test_quarterbacks_include_stats_matched_by_name(self):
+        line = {
+            "season": 2026,
+            "games": 7,
+            "dropbacks": 250,
+            "epa": 40.0,
+            "epa_per_dropback": 0.16,
+            "cpoe": 3.2,
+            "qbr": 71.5,
+        }
+        self.load_stats.return_value = {"michael penix": line}
+        rows = self.client.get("/api/quarterbacks", {"q": "penix"}).json()
+        self.assertEqual(rows[0]["stats"], line)
+        rows = self.client.get("/api/quarterbacks", {"q": "mahomes"}).json()
+        self.assertIsNone(rows[0]["stats"])
+
+    def test_quarterbacks_survive_stats_outage(self):
+        self.load_stats.side_effect = ConnectionError
+        with self.assertLogs("polls.nfl_stats", "ERROR"):
+            rows = self.client.get("/api/quarterbacks").json()
+        self.assertTrue(rows)
+        self.assertTrue(all(row["stats"] is None for row in rows))
 
     def test_ballot_validation_replacement_and_isolation(self):
         ids = [qb.id for qb in self.qbs[:15]]
