@@ -235,7 +235,12 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 @media (hover: none) { .search-key { display: none; } }
 .pool-list { max-height: 820px; overflow-y: auto; }
 .pool-list li { display: flex; align-items: center; gap: .75rem; min-height: 56px; padding: 6px .75rem 6px 1.25rem; border-bottom: 1px solid var(--line); }
-.pool-list .player-name { flex: 1; font-weight: 600; }
+.pool-player { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: .2rem; }
+.pool-list .player-name { font-weight: 600; }
+.qb-stats { display: flex; gap: .9rem; margin: .1rem 0 0; font-variant-numeric: tabular-nums; }
+.qb-stats div { display: flex; flex-direction: column; }
+.qb-stats dt { color: var(--subtle); font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.qb-stats dd { margin: 0; color: var(--ink-2); font-size: .8rem; font-weight: 700; }
 .team-badge { display: grid; place-items: center; width: 40px; height: 28px; flex-shrink: 0; border-radius: 4px; background: var(--chip); color: var(--chip-ink); font-size: .7rem; font-weight: 700; letter-spacing: .04em; }
 
 /* Results */

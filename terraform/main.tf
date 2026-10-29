@@ -19,7 +19,7 @@ data "digitalocean_ssh_key" "arch" {
 resource "digitalocean_droplet" "pollingjuegos" {
   name       = "pollingjuegos"
   region     = "nyc3"
-  size       = "s-1vcpu-512mb-10gb"
+  size       = "s-1vcpu-1gb"
   image      = "ubuntu-24-04-x64"
   ssh_keys   = [data.digitalocean_ssh_key.arch.id]
   monitoring = true

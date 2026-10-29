@@ -1,4 +1,4 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_image_layer", "py_library", "py_test")
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_image_layer", "py_layer_tier", "py_library", "py_test")
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
 load("@rules_img//img:load.bzl", "image_load")
@@ -44,6 +44,7 @@ py_library(
         "polls/migrations/0004_pollweek_closes_at.py",
         "polls/migrations/__init__.py",
         "polls/models.py",
+        "polls/nfl_stats.py",
         "polls/tests.py",
         "polls/views.py",
         "server.py",
@@ -55,6 +56,8 @@ py_library(
         "@pypi//django_allauth",
         "@pypi//django_ninja",
         "@pypi//gunicorn",
+        "@pypi//nflreadpy",
+        "@pypi//polars",
         "@pypi//whitenoise",  # keep
     ],
 )
@@ -87,6 +90,14 @@ py_binary(
     ],
 )
 
+py_layer_tier(
+    name = "layer_tier",
+    groups = {
+        "@pypi//polars_runtime_32": "polars",
+        "@pypi//polars": "polars",
+    },
+)
+
 py_image_layer(
     name = "python_layers",
     binaries = [
@@ -94,6 +105,7 @@ py_image_layer(
         ":manage",
     ],
     launcher_dir = "/app/bin",
+    layer_tier = ":layer_tier",
 )
 
 collectstatic(

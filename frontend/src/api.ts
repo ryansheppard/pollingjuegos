@@ -4,6 +4,21 @@ export interface Quarterback {
   team: { id: number; name: string; abbreviation: string } | null
 }
 
+export interface QuarterbackStats {
+  season: number
+  games: number
+  dropbacks: number
+  epa: number | null
+  epa_per_dropback: number | null
+  cpoe: number | null
+  qbr: number | null
+}
+
+/** /quarterbacks rows carry season-to-date stats; ballot and ranking payloads do not. */
+export interface QuarterbackWithStats extends Quarterback {
+  stats: QuarterbackStats | null
+}
+
 export interface Week {
   season: number
   week: number
@@ -43,10 +58,10 @@ export async function request<T>(path: string, options?: RequestInit): Promise<T
   return response.json() as Promise<T>
 }
 
-export async function loadQuarterbacks(): Promise<Quarterback[]> {
-  const all: Quarterback[] = []
+export async function loadQuarterbacks(): Promise<QuarterbackWithStats[]> {
+  const all: QuarterbackWithStats[] = []
   while (true) {
-    const page = await request<Quarterback[]>(`/quarterbacks?limit=100&offset=${all.length}`)
+    const page = await request<QuarterbackWithStats[]>(`/quarterbacks?limit=100&offset=${all.length}`)
     all.push(...page)
     if (page.length < 100) return all
   }

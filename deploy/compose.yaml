@@ -1,4 +1,3 @@
----
 # Copy this file to /opt/pollingjuegos/compose.yaml. Set RELEASE to a pushed
 # image tag before running Compose; never use `latest` for a production release.
 services:
@@ -8,6 +7,8 @@ services:
     env_file: /etc/pollingjuegos.env
     environment:
       DJANGO_DB_PATH: /data/db.sqlite3
+      NFLREADPY_CACHE: filesystem
+      NFLREADPY_CACHE_DIR: /data/nflreadpy
     volumes:
       - /var/lib/pollingjuegos/data:/data
     restart: unless-stopped
