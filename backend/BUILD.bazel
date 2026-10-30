@@ -147,3 +147,59 @@ image_push(
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
 )
+
+SRCS = glob(
+    ["**/*.py"],
+    exclude = ["polls/migrations/**"],
+)
+
+# keep
+py_test(
+    name = "ruff_format",
+    size = "small",
+    srcs = ["//tools:ruff_main.py"],
+    args = [
+        "format",
+        "--check",
+        "--force-exclude",
+        "--config",
+        "$(location //:pyproject.toml)",
+    ] + ["$(location %s)" % f for f in SRCS],
+    data = SRCS + ["//:pyproject.toml"],
+    main = "//tools:ruff_main.py",
+    deps = ["@pypi//ruff"],
+)
+
+# keep
+py_test(
+    name = "ruff_check",
+    size = "small",
+    srcs = ["//tools:ruff_main.py"],
+    args = [
+        "check",
+        "--force-exclude",
+        "--config",
+        "$(location //:pyproject.toml)",
+    ] + ["$(location %s)" % f for f in SRCS],
+    data = SRCS + ["//:pyproject.toml"],
+    main = "//tools:ruff_main.py",
+    deps = ["@pypi//ruff"],
+)
+
+# keep
+py_test(
+    name = "ty_check",
+    size = "small",
+    srcs = ["//tools:ty_main.py"],
+    args = [
+        "check",
+        "--extra-search-path",
+        "backend",
+    ] + ["$(location %s)" % f for f in SRCS],
+    data = SRCS + ["//:pyproject.toml"],
+    main = "//tools:ty_main.py",
+    deps = [
+        ":backend",
+        "@pypi//ty",
+    ],
+)

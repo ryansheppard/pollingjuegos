@@ -9,21 +9,6 @@ permissions:
   contents: read
 
 jobs:
-  lint:
-    name: Run linting
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-        with:
-          submodules: recursive
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
-      - run: hk check --all
-      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
-        if: ${{ failure() }}
-        with:
-          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          content: "Linting failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-
   test:
     name: Run tests
     runs-on: ubuntu-latest
@@ -37,17 +22,18 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
           external-cache: true
+      - run: hk check --all
       - run: bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
-          content: "Tests failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          content: "Lint or tests failed on ${{ github.ref_name }}: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
 
   publish:
     name: Publish images
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, test]
+    needs: [test]
     runs-on: ubuntu-latest
     environment: production
     concurrency:

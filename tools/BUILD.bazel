@@ -1,0 +1,24 @@
+# gazelle:python_extension disabled
+
+load("@aspect_rules_py//py:defs.bzl", "py_binary")
+
+py_binary(
+    name = "ruff",
+    srcs = ["ruff_main.py"],
+    main = "ruff_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//ruff"],
+)
+
+py_binary(
+    name = "ty",
+    srcs = ["ty_main.py"],
+    main = "ty_main.py",
+    visibility = ["//visibility:public"],
+    deps = ["@pypi//ty"],
+)
+
+exports_files([
+    "ruff_main.py",
+    "ty_main.py",
+])

@@ -68,11 +68,34 @@ resource "cloudflare_zone_setting" "ssl" {
   value      = "strict"
 }
 
-# Zone-level AOP: Cloudflare presents its shared origin-pull client cert, which
-# Caddy verifies against deploy/cloudflare-origin-pull-ca.pem.
+# A zone-specific AOP client cert instead of Cloudflare's shared one, which any
+# Cloudflare customer's proxied hostname would also present.
+resource "tls_private_key" "aop" {
+  algorithm = "RSA"
+  rsa_bits  = 2048
+}
+
+resource "tls_self_signed_cert" "aop" {
+  private_key_pem       = tls_private_key.aop.private_key_pem
+  validity_period_hours = 87600
+  allowed_uses          = ["digital_signature", "key_encipherment", "client_auth"]
+
+  subject {
+    common_name = "pollingjuegos cloudflare origin pull"
+  }
+}
+
+resource "cloudflare_authenticated_origin_pulls_certificate" "aop" {
+  zone_id     = data.cloudflare_zone.ryansheppard.zone_id
+  certificate = tls_self_signed_cert.aop.cert_pem
+  private_key = tls_private_key.aop.private_key_pem
+}
+
 resource "cloudflare_authenticated_origin_pulls_settings" "aop" {
   zone_id = data.cloudflare_zone.ryansheppard.zone_id
   enabled = true
+
+  depends_on = [cloudflare_authenticated_origin_pulls_certificate.aop]
 }
 
 data "digitalocean_ssh_key" "arch" {
@@ -148,4 +171,8 @@ output "origin_certificate" {
 output "origin_private_key" {
   value     = tls_private_key.origin.private_key_pem
   sensitive = true
+}
+
+output "aop_client_certificate" {
+  value = tls_self_signed_cert.aop.cert_pem
 }

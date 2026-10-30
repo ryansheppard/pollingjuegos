@@ -4,7 +4,7 @@ pj.ryansheppard.xyz {
     tls /etc/caddy/tls/origin.pem /etc/caddy/tls/origin-key.pem {
         client_auth {
             mode require_and_verify
-            trust_pool file /etc/caddy/cloudflare-origin-pull-ca.pem
+            trust_pool file /etc/caddy/tls/aop-client.pem
         }
     }
     @django path /api /api/* /accounts /accounts/* /admin /admin/* /static /static/*

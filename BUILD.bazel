@@ -14,3 +14,7 @@ gazelle_python_manifest(
     include_stub_packages = True,
     venvs = ["dev"],
 )
+
+exports_files(
+    ["pyproject.toml"],
+)
