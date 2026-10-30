@@ -36,6 +36,7 @@ jobs:
         with:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
+          external-cache: true
       - run: bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
@@ -61,6 +62,7 @@ jobs:
         with:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
+          external-cache: true
       - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f  # v2.5.2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
