@@ -92,6 +92,11 @@ class PollAPITests(TestCase):
             "epa_per_dropback": 0.16,
             "cpoe": 3.2,
             "qbr": 71.5,
+            "qualified": True,
+            "qualified_count": 34,
+            "qbr_rank": 9,
+            "epa_rank": 12,
+            "cpoe_rank": 10,
         }
         self.load_stats.return_value = {"michael penix": line}
         rows = self.client.get("/api/quarterbacks", {"q": "penix"}).json()

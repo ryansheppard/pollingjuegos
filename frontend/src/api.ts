@@ -12,6 +12,12 @@ export interface QuarterbackStats {
   epa_per_dropback: number | null
   cpoe: number | null
   qbr: number | null
+  /** League ranks cover only QBs past the backend's dropback cutoff. */
+  qualified: boolean
+  qualified_count: number
+  qbr_rank: number | null
+  epa_rank: number | null
+  cpoe_rank: number | null
 }
 
 /** /quarterbacks rows carry season-to-date stats; ballot and ranking payloads do not. */

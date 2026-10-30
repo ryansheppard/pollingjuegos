@@ -1,8 +1,54 @@
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError, transaction
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from .models import Ballot, PollWeek, Quarterback, Team, Vote
+from .nfl_stats import MIN_RANKED_DROPBACKS, add_league_ranks
+
+
+def stat_line(dropbacks=MIN_RANKED_DROPBACKS, qbr=None, epa=None, cpoe=None):
+    return {"dropbacks": dropbacks, "qbr": qbr, "epa_per_dropback": epa, "cpoe": cpoe}
+
+
+class LeagueRankTests(SimpleTestCase):
+    def test_higher_is_better_and_ties_share_rank(self):
+        lines = [
+            stat_line(qbr=70.0, epa=0.1, cpoe=-2.0),
+            stat_line(qbr=79.6, epa=0.3, cpoe=1.0),
+            stat_line(qbr=79.6, epa=-0.2, cpoe=9.0),
+        ]
+        add_league_ranks(lines)
+        self.assertEqual([line["qbr_rank"] for line in lines], [3, 1, 1])
+        self.assertEqual([line["epa_rank"] for line in lines], [2, 1, 3])
+        self.assertEqual([line["cpoe_rank"] for line in lines], [3, 2, 1])
+
+    def test_unqualified_qbs_are_unranked_and_do_not_count(self):
+        backup = stat_line(MIN_RANKED_DROPBACKS - 1, qbr=99.0, epa=1.0, cpoe=20.0)
+        starter = stat_line(qbr=50.0, epa=0.0, cpoe=0.0)
+        add_league_ranks([backup, starter])
+        self.assertFalse(backup["qualified"])
+        self.assertEqual(
+            [backup[key] for key in ("qbr_rank", "epa_rank", "cpoe_rank")],
+            [None, None, None],
+        )
+        self.assertTrue(starter["qualified"])
+        self.assertEqual(
+            [starter[key] for key in ("qbr_rank", "epa_rank", "cpoe_rank")],
+            [1, 1, 1],
+        )
+        self.assertEqual(backup["qualified_count"], 1)
+        self.assertEqual(starter["qualified_count"], 1)
+
+    def test_missing_qbr_is_unranked_without_shifting_others(self):
+        lines = [
+            stat_line(qbr=None, epa=0.4),
+            stat_line(qbr=60.0, epa=0.2),
+            stat_line(qbr=55.0, epa=0.1),
+        ]
+        add_league_ranks(lines)
+        self.assertEqual([line["qbr_rank"] for line in lines], [None, 1, 2])
+        self.assertEqual([line["epa_rank"] for line in lines], [1, 2, 3])
+        self.assertTrue(lines[0]["qualified"])
 
 
 class SeedDataTests(TestCase):

@@ -40,6 +40,10 @@
   --error-ink: #982c24;
   --success-bg: #e6f3e9;
   --success-ink: #225a35;
+  --rank-top-bg: #e3f1e7;
+  --rank-top-ink: #1f5631;
+  --rank-low-bg: #fbe8dc;
+  --rank-low-ink: #9c431b;
   --shadow: 0 6px 22px rgba(18, 43, 70, .035);
   --sticky-shadow: 0 -8px 24px rgba(18, 43, 70, .08);
 
@@ -87,6 +91,10 @@
   --error-ink: #ffc1b8;
   --success-bg: #234536;
   --success-ink: #bde8c9;
+  --rank-top-bg: #234536;
+  --rank-top-ink: #bde8c9;
+  --rank-low-bg: #3d2c27;
+  --rank-low-ink: #f5a77e;
   --shadow: none;
   --sticky-shadow: 0 -8px 24px rgba(0, 0, 0, .35);
 }
@@ -202,8 +210,33 @@ main { padding-top: 1.75rem; padding-bottom: 2.5rem; }
 .slot-name .team { margin-left: 0; }
 .slot-meta { display: inline-flex; align-items: baseline; gap: .35rem; }
 .crowd-inline { display: none; color: var(--subtle); font-size: .75rem; font-weight: 600; }
-.crowd-chip { flex-shrink: 0; padding: .25rem .5rem; border-radius: 4px; background: var(--chip); color: var(--chip-ink); font-size: .75rem; font-weight: 600; white-space: nowrap; }
+.crowd-inline.rank-top { color: var(--rank-top-ink); }
+.crowd-inline.rank-mid { color: var(--ink-2); }
+.crowd-inline.rank-low { color: var(--rank-low-ink); }
+.crowd-chip { flex-shrink: 0; padding: .25rem .5rem; border-radius: 4px; background: var(--chip); color: var(--chip-ink); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .crowd-chip.unranked { background: var(--surface-2); color: var(--subtle); }
+.crowd-chip.rank-top { background: var(--rank-top-bg); color: var(--rank-top-ink); }
+.crowd-chip.rank-mid { background: transparent; color: var(--ink-2); }
+.crowd-chip.rank-low { background: var(--rank-low-bg); color: var(--rank-low-ink); }
+.chip-rank { margin-left: .35rem; font-size: .65rem; font-weight: 700; }
+/* Widths and spacing track .slot-row so each label sits over its column. */
+.slot-columns { display: flex; align-items: center; gap: .85rem; padding: 6px 1rem 6px 1.5rem; border-top: 1px solid var(--line); }
+.column-label { color: var(--muted); font-size: .68rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+.column-slot { width: 2.4rem; flex-shrink: 0; }
+.column-name { flex: 1; min-width: 0; }
+.column-points { width: 3rem; flex-shrink: 0; text-align: right; }
+.column-controls { width: calc(3 * 44px + 2 * 4px); flex-shrink: 0; }
+.lens-switch { display: flex; gap: 2px; padding: 3px; border: 1px solid var(--control-line); border-radius: 8px; background: var(--surface-2); }
+.lens-switch button { min-height: 38px; padding: 0 .75rem; border: 0; border-radius: 6px; background: transparent; color: var(--ink-2); font-size: .82rem; font-weight: 700; }
+.lens-switch button:hover:not([aria-pressed='true']) { background: var(--chip); }
+.lens-switch button[aria-pressed='true'] { background: var(--primary); color: var(--primary-ink); }
+/* Neighbouring buttons paint later and would cover the focus ring. */
+.lens-switch button:focus-visible { position: relative; z-index: 1; }
+.lens-legend { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin: 0; padding: .9rem 1.5rem; color: var(--muted); font-size: .75rem; }
+.legend-key { display: inline-flex; align-items: center; gap: .4rem; }
+.legend-swatch { width: 12px; height: 12px; border-radius: 3px; border: 1px solid var(--control-line); }
+.legend-swatch.rank-top { background: var(--rank-top-bg); border-color: var(--rank-top-ink); }
+.legend-swatch.rank-low { background: var(--rank-low-bg); border-color: var(--rank-low-ink); }
 .slot-points { flex-shrink: 0; width: 3rem; text-align: right; color: var(--subtle); font-size: .75rem; font-weight: 600; font-variant-numeric: tabular-nums; }
 .slot.empty .slot-points { color: var(--subtle); opacity: .8; }
 .slot-toggle { display: none; border: 0; background: transparent; color: var(--subtle); }
@@ -289,6 +322,10 @@ footer span { margin: 0 .35rem; }
   .tab { justify-content: center; padding: 0 .5rem; }
   .tab-extra { display: none; }
   .panel-heading { padding: 1rem 1rem .85rem; }
+  /* Rows drop the chip and controls here, so only the switch has a column to sit over. */
+  .slot-columns { padding: 6px 1rem; }
+  .slot-columns .column-label, .column-controls { display: none; }
+  .lens-legend { padding-inline: 1rem; }
 
   /* Rows collapse to one edit button that reveals labelled controls. */
   .slot-row { gap: .6rem; padding: 4px 4px 4px 1.75rem; }

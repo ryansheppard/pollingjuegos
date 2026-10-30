@@ -185,6 +185,53 @@ function statLine(stats: QuarterbackStats) {
   ]
 }
 
+type Lens = 'crowd' | 'qbr' | 'epa' | 'cpoe'
+const lenses: { key: Lens, label: string }[] = [
+  { key: 'crowd', label: 'Crowd' },
+  { key: 'qbr', label: 'QBR' },
+  { key: 'epa', label: 'EPA' },
+  { key: 'cpoe', label: 'CPOE' },
+]
+const lensKey = 'pollingjuegos-ballot-lens'
+const lens = ref<Lens>(getInitialLens())
+function getInitialLens(): Lens {
+  try {
+    const saved = draftStorage()?.getItem(lensKey)
+    const match = lenses.find((option) => option.key === saved)
+    if (match) return match.key
+  } catch { /* Storage can be disabled; fall back to the default lens. */ }
+  return 'epa'
+}
+watch(lens, (value) => {
+  try { draftStorage()?.setItem(lensKey, value) } catch { /* Keep the in-memory choice if storage is unavailable. */ }
+})
+// Ballot rows come back from saves without stats, so join them from the catalog.
+const statsById = computed(() => new Map(catalog.value.map((qb) => [qb.id, qb.stats])))
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+const qualifiedCount = computed(() => catalog.value.find((qb) => qb.stats)?.stats?.qualified_count ?? 0)
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+const showBadge = computed(() => lens.value !== 'crowd' || !!rankings.value?.ballots)
+function badgeFor(qb: Quarterback) {
+  const key = lens.value
+  if (key === 'crowd') {
+    const rank = crowdRanks.value.get(qb.id)
+    return { text: rank ? `Crowd #${rank}` : 'Unranked', rank: '', tone: rank ? '' : 'unranked', title: undefined }
+  }
+  const label = lenses.find((option) => option.key === key)!.label
+  const stats = statsById.value.get(qb.id)
+  if (!stats) return { text: `${label} —`, rank: '', tone: 'unranked', title: 'No stats this season' }
+  const stat = statLine(stats).find((entry) => entry.key === key)!
+  const rank = stats[`${key}_rank`]
+  return {
+    text: `${stat.label} ${stat.value}`,
+    rank: rank !== null ? `#${rank}` : stats.qualified ? '' : 'n/q',
+    tone: rank === null ? (stat.value === '—' ? 'unranked' : '') : rank <= 8 ? 'rank-top' : rank <= 20 ? 'rank-mid' : 'rank-low',
+    title: stats.qualified ? stat.title : `${stat.title} · too few dropbacks to rank`,
+  }
+}
+// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
+const ballotRows = computed(() => ballot.value.map((qb) => ({ qb, badge: badgeFor(qb) })))
+
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function addQuarterback(qb: Quarterback) {
   if (saving.value || ballot.value.length >= 15 || ballot.value.some((entry) => entry.id === qb.id)) return
@@ -433,7 +480,7 @@ onMounted(async () => {
         <div class="panel-heading">
           <div>
             <h2 id="ballot-title">Your top 15</h2>
-            <p class="panel-sub">{{ closed ? 'Voting is closed. Your saved ballot is read-only.' : 'Points per slot on the right. Your draft autosaves on this device.' }}</p>
+            <p v-if="closed" class="panel-sub">Voting is closed. Your saved ballot is read-only.</p>
           </div>
           <button v-if="previousWeek && !closed" type="button" class="secondary-button" :disabled="saving" @click="copyPrevious">
             <svg aria-hidden="true" viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" /><path d="M5 15V5a2 2 0 0 1 2-2h10" /></svg>
@@ -441,8 +488,19 @@ onMounted(async () => {
           </button>
         </div>
 
+        <!-- Mirrors .slot-row so the switch lands over the badge column. -->
+        <div class="slot-columns">
+          <span class="column-label column-slot" aria-hidden="true">Slot</span>
+          <span class="column-label column-name" aria-hidden="true">Quarterback</span>
+          <div class="lens-switch" role="group" aria-label="Badge shows">
+            <button v-for="option in lenses" :key="option.key" type="button" :aria-pressed="lens === option.key" @click="lens = option.key">{{ option.label }}</button>
+          </div>
+          <span class="column-label column-points" aria-hidden="true">Pts</span>
+          <span v-if="!closed" class="column-controls" aria-hidden="true"></span>
+        </div>
+
         <ol class="slot-list">
-          <li v-for="(qb, index) in ballot" :key="qb.id" class="slot" :class="{ 'is-open': openSlot === index, dragging: dragIndex === index }" :data-slot="index">
+          <li v-for="({ qb, badge }, index) in ballotRows" :key="qb.id" class="slot" :class="{ 'is-open': openSlot === index, dragging: dragIndex === index }" :data-slot="index">
             <div class="slot-row">
               <span v-if="!closed" class="drag-handle" aria-hidden="true" title="Drag to reorder" @pointerdown="startDrag($event, index)">
                 <svg viewBox="0 0 24 24"><circle cx="9" cy="6" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="18" r="1" /></svg>
@@ -452,10 +510,10 @@ onMounted(async () => {
                 <span class="player-name">{{ qb.name }}</span>
                 <span class="slot-meta">
                   <span v-if="qb.team" class="team">{{ qb.team.abbreviation }}</span>
-                  <span v-if="rankings?.ballots" class="crowd-inline">· {{ crowdRanks.get(qb.id) ? `Crowd #${crowdRanks.get(qb.id)}` : 'Unranked' }}</span>
+                  <span v-if="showBadge" class="crowd-inline" :class="badge.tone" :title="badge.title">· {{ badge.text }}<template v-if="badge.rank"> {{ badge.rank }}</template></span>
                 </span>
               </span>
-              <span v-if="rankings?.ballots" class="crowd-chip" :class="{ unranked: !crowdRanks.get(qb.id) }">{{ crowdRanks.get(qb.id) ? `Crowd #${crowdRanks.get(qb.id)}` : 'Unranked' }}</span>
+              <span v-if="showBadge" class="crowd-chip" :class="badge.tone" :title="badge.title">{{ badge.text }}<span v-if="badge.rank" class="chip-rank">{{ badge.rank }}</span></span>
               <span class="slot-points">{{ 15 - index }} pts</span>
               <button v-if="!closed" type="button" class="icon-button slot-toggle" :aria-expanded="openSlot === index" :aria-label="`Edit ${qb.name}`" @click="openSlot = openSlot === index ? null : index">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
@@ -481,6 +539,11 @@ onMounted(async () => {
             </div>
           </li>
         </ol>
+        <p v-if="lens !== 'crowd'" class="lens-legend">
+          <span class="legend-key"><span class="legend-swatch rank-top" aria-hidden="true"></span>League top 8</span>
+          <span class="legend-key"><span class="legend-swatch rank-mid" aria-hidden="true"></span>9–20</span>
+          <span class="legend-key"><span class="legend-swatch rank-low" aria-hidden="true"></span>21+<template v-if="qualifiedCount"> of {{ qualifiedCount }}</template></span>
+        </p>
 
         <SaveBar class="save-bar-inline" :count="ballot.length" :closed="closed" :saving="saving" :dirty="dirty" :has-saved="savedIds.length > 0" @add="focusSearch" @save="submit" />
       </section>
