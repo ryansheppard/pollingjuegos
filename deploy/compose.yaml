@@ -22,7 +22,7 @@ services:
     ports:
       - "443:443"
     volumes:
-      # Origin CA cert/key from `terraform output`; root-owned, key mode 0600.
+      # Origin CA cert/key and AOP client cert from `terraform output`; key mode 0600.
       - /etc/pollingjuegos/tls:/etc/caddy/tls:ro
       - caddy_data:/data
       - caddy_config:/config
