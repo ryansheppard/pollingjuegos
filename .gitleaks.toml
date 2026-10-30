@@ -7,3 +7,7 @@ useDefault = true
 [[allowlists]]
 description = "Ignore local, untracked mise credentials"
 paths = ['''^mise\.local\.toml$''']
+
+[[allowlists]]
+description = "Ignore local, untracked Terraform state (holds the origin TLS key)"
+paths = ['''^terraform/terraform\.tfstate(\.backup)?$''']

@@ -1,1 +1,4 @@
-exports_files(["Caddyfile.container"])
+exports_files([
+    "Caddyfile.container",
+    "cloudflare-origin-pull-ca.pem",
+])

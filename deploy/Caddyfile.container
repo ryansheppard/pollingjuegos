@@ -1,4 +1,12 @@
 pj.ryansheppard.xyz {
+    # Only Cloudflare connects (firewall + client cert), so a Cloudflare Origin
+    # CA cert suffices and no ACME challenge needs to reach the droplet.
+    tls /etc/caddy/tls/origin.pem /etc/caddy/tls/origin-key.pem {
+        client_auth {
+            mode require_and_verify
+            trust_pool file /etc/caddy/cloudflare-origin-pull-ca.pem
+        }
+    }
     @django path /api /api/* /accounts /accounts/* /admin /admin/* /static /static/*
     handle @django {
         reverse_proxy backend:8000
