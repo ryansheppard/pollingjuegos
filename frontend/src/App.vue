@@ -510,7 +510,7 @@ onMounted(async () => {
                 <span class="player-name">{{ qb.name }}</span>
                 <span class="slot-meta">
                   <span v-if="qb.team" class="team">{{ qb.team.abbreviation }}</span>
-                  <span v-if="showBadge" class="crowd-inline" :title="badge.title">· {{ badge.text }}<template v-if="badge.rank"> {{ badge.rank }}</template></span>
+                  <span v-if="showBadge" class="crowd-inline" :class="badge.tone" :title="badge.title">· {{ badge.text }}<template v-if="badge.rank"> {{ badge.rank }}</template></span>
                 </span>
               </span>
               <span v-if="showBadge" class="crowd-chip" :class="badge.tone" :title="badge.title">{{ badge.text }}<span v-if="badge.rank" class="chip-rank">{{ badge.rank }}</span></span>
