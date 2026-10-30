@@ -20,7 +20,6 @@ services:
     depends_on:
       - backend
     ports:
-      - "80:80"
       - "443:443"
     volumes:
       # Origin CA cert/key from `terraform output`; root-owned, key mode 0600.

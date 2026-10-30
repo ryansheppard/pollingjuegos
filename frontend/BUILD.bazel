@@ -68,7 +68,10 @@ image_layer(
 
 image_layer(
     name = "caddy_config_layer",
-    srcs = {"/etc/caddy/Caddyfile": "//deploy:Caddyfile.container"},
+    srcs = {
+        "/etc/caddy/Caddyfile": "//deploy:Caddyfile.container",
+        "/etc/caddy/cloudflare-origin-pull-ca.pem": "//deploy:cloudflare-origin-pull-ca.pem",
+    },
 )
 
 image_manifest(
