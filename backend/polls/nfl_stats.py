@@ -16,6 +16,9 @@ logger = logging.getLogger(__name__)
 CACHE_SECONDS = 15 * 60
 # Avoid hammering GitHub (and blocking requests on its timeout) during an outage.
 FAILURE_CACHE_SECONDS = 5 * 60
+# Keeps spot-duty backups off per-play leaderboards.
+MIN_RANKED_DROPBACKS = 100
+_RANK_KEYS = {"qbr": "qbr_rank", "epa_per_dropback": "epa_rank", "cpoe": "cpoe_rank"}
 
 _lock = threading.Lock()
 _cached: tuple[float, dict[str, dict]] | None = None
@@ -71,7 +74,24 @@ def _load(season: int) -> dict[str, dict]:
             "cpoe": row["passing_cpoe"],
             "qbr": qbr_by_name.get(key),
         }
+    # After deduping by name, so a shadowed backup can't take a rank slot.
+    add_league_ranks(list(result.values()))
     return result
+
+
+def add_league_ranks(lines: list[dict]) -> None:
+    """Rank qualified QBs per stat, higher is better; ties share the best rank."""
+    qualified = [line for line in lines if line["dropbacks"] >= MIN_RANKED_DROPBACKS]
+    for line in lines:
+        line["qualified"] = line["dropbacks"] >= MIN_RANKED_DROPBACKS
+        line["qualified_count"] = len(qualified)
+        for rank_key in _RANK_KEYS.values():
+            line[rank_key] = None
+    for stat, rank_key in _RANK_KEYS.items():
+        values = [line[stat] for line in qualified if line[stat] is not None]
+        for line in qualified:
+            if line[stat] is not None:
+                line[rank_key] = 1 + sum(value > line[stat] for value in values)
 
 
 def qb_stats_by_name() -> dict[str, dict]:

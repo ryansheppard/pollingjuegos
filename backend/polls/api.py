@@ -42,6 +42,13 @@ class QuarterbackStatsOut(Schema):
     epa_per_dropback: float | None
     cpoe: float | None
     qbr: float | None
+    # Ranks only cover QBs with nfl_stats.MIN_RANKED_DROPBACKS; null otherwise
+    # or when the stat itself is missing.
+    qualified: bool
+    qualified_count: int
+    qbr_rank: int | None
+    epa_rank: int | None
+    cpoe_rank: int | None
 
 
 class QuarterbackWithStatsOut(QuarterbackOut):
