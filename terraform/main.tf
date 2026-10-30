@@ -6,11 +6,20 @@ terraform {
       source  = "digitalocean/digitalocean"
       version = "~> 2.0"
     }
+    cloudflare = {
+      source  = "cloudflare/cloudflare"
+      version = "~> 5"
+    }
   }
 }
 
-# Set DIGITALOCEAN_TOKEN in the environment; never pass secrets in -var files.
+# Set DIGITALOCEAN_TOKEN
 provider "digitalocean" {}
+
+# Set CLOUDFLARE_API_KEY
+provider "cloudflare" {}
+
+data "cloudflare_ip_ranges" "cloudflare_ips" {}
 
 data "digitalocean_ssh_key" "arch" {
   name = "arch"
@@ -38,15 +47,12 @@ resource "digitalocean_firewall" "pollingjuegos" {
   droplet_ids = [digitalocean_droplet.pollingjuegos.id]
 
   inbound_rule {
-    protocol         = "tcp"
-    port_range       = "80"
-    source_addresses = ["0.0.0.0/0", "::/0"]
-  }
-
-  inbound_rule {
-    protocol         = "tcp"
-    port_range       = "443"
-    source_addresses = ["0.0.0.0/0", "::/0"]
+    protocol   = "tcp"
+    port_range = "443"
+    source_addresses = concat(
+      data.cloudflare_ip_ranges.cloudflare_ips.ipv4_cidrs,
+      data.cloudflare_ip_ranges.cloudflare_ips.ipv6_cidrs,
+    )
   }
 
   outbound_rule {
