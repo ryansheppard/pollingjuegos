@@ -112,6 +112,63 @@ resource "cloudflare_ruleset" "waf_custom" {
   }]
 }
 
+resource "cloudflare_ruleset" "rate_limit" {
+  zone_id = data.cloudflare_zone.ryansheppard.zone_id
+  name    = "rate limiting rules"
+  kind    = "zone"
+  phase   = "http_ratelimit"
+
+  rules = [{
+    description = "Rate limit Discord OAuth login and callback"
+    expression  = "(starts_with(http.request.uri.path, \"/accounts/\"))"
+    action      = "block"
+    enabled     = true
+    ratelimit = {
+      characteristics     = ["cf.colo.id", "ip.src"]
+      period              = 10
+      requests_per_period = 20
+      mitigation_timeout  = 10
+    }
+  }]
+}
+
+data "cloudflare_zero_trust_access_identity_providers" "all" {
+  account_id = data.cloudflare_zone.ryansheppard.account.id
+}
+
+locals {
+  otp_idp_id = one([for idp in data.cloudflare_zero_trust_access_identity_providers.all.result : idp.id if idp.type == "onetimepin"])
+}
+
+resource "cloudflare_zero_trust_access_policy" "admin" {
+  account_id       = data.cloudflare_zone.ryansheppard.account.id
+  name             = "pollingjuegos admin"
+  decision         = "allow"
+  session_duration = "1h"
+
+  include = [{
+    email = { email = var.admin_email }
+  }]
+}
+
+resource "cloudflare_zero_trust_access_application" "admin" {
+  account_id       = data.cloudflare_zone.ryansheppard.account.id
+  name             = "pollingjuegos admin"
+  type             = "self_hosted"
+  session_duration = "1h"
+  allowed_idps     = [local.otp_idp_id]
+
+  destinations = [{
+    type = "public"
+    uri  = "pj.ryansheppard.xyz/admin"
+  }]
+
+  policies = [{
+    id         = cloudflare_zero_trust_access_policy.admin.id
+    precedence = 1
+  }]
+}
+
 data "digitalocean_ssh_key" "arch" {
   name = "arch"
 }
@@ -178,6 +235,11 @@ variable "admin_ips" {
     condition     = length(var.admin_ips) > 0 && alltrue([for ip in var.admin_ips : can(cidrhost(strcontains(ip, "/") ? ip : (strcontains(ip, ":") ? "${ip}/128" : "${ip}/32"), 0))])
     error_message = "admin_ips must be a non-empty list of IPv4/IPv6 addresses or CIDRs."
   }
+}
+
+variable "admin_email" {
+  description = "Email that receives Cloudflare Access one-time PINs for /admin."
+  type        = string
 }
 
 output "ipv4_address" {
