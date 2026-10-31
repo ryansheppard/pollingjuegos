@@ -11,6 +11,8 @@ services:
       NFLREADPY_CACHE_DIR: /data/nflreadpy
     volumes:
       - /var/lib/pollingjuegos/data:/data
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
     restart: unless-stopped
     # No public port: frontend reaches Gunicorn on the private Compose network.
 
@@ -26,6 +28,9 @@ services:
       - /etc/pollingjuegos/tls:/etc/caddy/tls:ro
       - caddy_data:/data
       - caddy_config:/config
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ['no-new-privileges:true']
     restart: unless-stopped
 
 volumes:
