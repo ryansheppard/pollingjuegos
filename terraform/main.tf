@@ -98,6 +98,20 @@ resource "cloudflare_authenticated_origin_pulls_settings" "aop" {
   depends_on = [cloudflare_authenticated_origin_pulls_certificate.aop]
 }
 
+resource "cloudflare_ruleset" "waf_custom" {
+  zone_id = data.cloudflare_zone.ryansheppard.zone_id
+  name    = "custom firewall rules"
+  kind    = "zone"
+  phase   = "http_request_firewall_custom"
+
+  rules = [{
+    description = "Restrict Django admin to admin_ips"
+    expression  = "(http.host eq \"pj.ryansheppard.xyz\" and starts_with(http.request.uri.path, \"/admin\") and not ip.src in {${join(" ", var.admin_ips)}})"
+    action      = "block"
+    enabled     = true
+  }]
+}
+
 data "digitalocean_ssh_key" "arch" {
   name = "arch"
 }
@@ -154,6 +168,16 @@ variable "enable_droplet_backups" {
   description = "Enable DigitalOcean's paid droplet snapshots (not a substitute for offsite SQLite backups)."
   type        = bool
   default     = false
+}
+
+variable "admin_ips" {
+  description = "IPs/CIDRs allowed to reach /admin, e.g. TF_VAR_admin_ips='[\"203.0.113.7\",\"2001:db8:1234:5678::/64\"]'."
+  type        = list(string)
+
+  validation {
+    condition     = length(var.admin_ips) > 0 && alltrue([for ip in var.admin_ips : can(cidrhost(strcontains(ip, "/") ? ip : (strcontains(ip, ":") ? "${ip}/128" : "${ip}/32"), 0))])
+    error_message = "admin_ips must be a non-empty list of IPv4/IPv6 addresses or CIDRs."
+  }
 }
 
 output "ipv4_address" {
