@@ -4,6 +4,7 @@ use ntex::http::{HttpMessage, header};
 use ntex::web::{self, HttpRequest, HttpResponse, types::Query};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::St;
 use crate::auth::{self, SESSION_COOKIE, SESSION_TTL_SECS};
@@ -17,6 +18,7 @@ const CALLBACK_PATH: &str = "/accounts/discord/login/callback/";
 const DISCORD_AUTHORIZE: &str = "https://discord.com/oauth2/authorize";
 const DISCORD_TOKEN: &str = "https://discord.com/api/oauth2/token";
 const DISCORD_ME: &str = "https://discord.com/api/users/@me";
+const DISCORD_REVOKE: &str = "https://discord.com/api/oauth2/token/revoke";
 
 #[derive(Deserialize)]
 struct NextQuery {
@@ -34,6 +36,7 @@ struct CallbackQuery {
 struct OAuthState {
     state: String,
     next: String,
+    pkce_verifier: String,
 }
 
 #[derive(Deserialize)]
@@ -90,6 +93,12 @@ fn random_b64(n: usize) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
+/// RFC 7636 S256: the challenge goes to Discord up front, the verifier only on
+/// the token exchange, so an intercepted `code` alone can't be redeemed.
+fn pkce_challenge(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
 fn redirect_uri(st: &St) -> String {
     format!("{}{CALLBACK_PATH}", st.cfg.public_origin)
 }
@@ -102,13 +111,17 @@ async fn discord_login(st: &St, (): (), q: Query<NextQuery>) -> HttpResponse {
     let oauth = OAuthState {
         state: random_b64(16),
         next: safe_next(q.next.as_deref()),
+        pkce_verifier: random_b64(32),
     };
+    let challenge = pkce_challenge(&oauth.pkce_verifier);
     let authorize = serde_urlencoded::to_string([
         ("response_type", "code"),
         ("client_id", &st.cfg.discord_client_id),
         ("scope", "identify"),
         ("redirect_uri", &redirect_uri(st)),
         ("state", &oauth.state),
+        ("code_challenge", &challenge),
+        ("code_challenge_method", "S256"),
     ])
     .expect("string pairs encode");
     let cookie_value =
@@ -153,7 +166,10 @@ async fn complete_login(st: &St, req: &HttpRequest, q: CallbackQuery) -> Result<
         return Err(AppError::BadRequest("Sign-in state mismatch; try again."));
     }
 
-    let discord_user = fetch_discord_user(st, &code).await?;
+    // The cookie isn't signed, so don't rely on it holding what we wrote.
+    let next = safe_next(Some(&oauth.next));
+
+    let discord_user = fetch_discord_user(st, &code, &oauth.pkce_verifier).await?;
 
     // No awaits past this point, so the connection borrow can't span a suspension.
     let conn = st.db.conn();
@@ -161,15 +177,22 @@ async fn complete_login(st: &St, req: &HttpRequest, q: CallbackQuery) -> Result<
         return Err(AppError::NotApproved);
     }
     let user_id = auth::upsert_user(&conn, &discord_user.id, &discord_user.username)?;
+    if let Some(previous) = req
+        .cookie(SESSION_COOKIE)
+        .and_then(|c| auth::hash_cookie(c.value()))
+    {
+        auth::delete_session(&conn, &previous)?;
+    }
+    auth::delete_expired_sessions(&conn)?;
     let token = auth::create_session(&conn, user_id)?;
 
     Ok(HttpResponse::Found()
-        .header(header::LOCATION, oauth.next)
+        .header(header::LOCATION, next)
         .cookie(host_cookie(SESSION_COOKIE, token, SESSION_TTL_SECS))
         .body(""))
 }
 
-async fn fetch_discord_user(st: &St, code: &str) -> Result<DiscordUser> {
+async fn fetch_discord_user(st: &St, code: &str, pkce_verifier: &str) -> Result<DiscordUser> {
     let upstream = |e: &dyn std::fmt::Display| AppError::Upstream(e.to_string());
 
     let res = st
@@ -183,6 +206,7 @@ async fn fetch_discord_user(st: &St, code: &str) -> Result<DiscordUser> {
             ("grant_type", "authorization_code"),
             ("code", code),
             ("redirect_uri", &redirect_uri(st)),
+            ("code_verifier", pkce_verifier),
         ])
         .await
         .map_err(|e| upstream(&e))?;
@@ -194,10 +218,17 @@ async fn fetch_discord_user(st: &St, code: &str) -> Result<DiscordUser> {
     }
     let token: TokenResponse = res.json().await.map_err(|e| upstream(&e))?;
 
+    let user = fetch_me(st, &token.access_token).await;
+    revoke_in_background(st, token.access_token);
+    user
+}
+
+async fn fetch_me(st: &St, access_token: &str) -> Result<DiscordUser> {
+    let upstream = |e: &dyn std::fmt::Display| AppError::Upstream(e.to_string());
     let res = st
         .http
         .get(DISCORD_ME)
-        .bearer_auth(&token.access_token)
+        .bearer_auth(access_token)
         .send()
         .await
         .map_err(|e| upstream(&e))?;
@@ -208,6 +239,29 @@ async fn fetch_discord_user(st: &St, code: &str) -> Result<DiscordUser> {
         )));
     }
     res.json().await.map_err(|e| upstream(&e))
+}
+
+/// The token is only needed for the one `users/@me` call; revoking it means a
+/// leak can't be used for the rest of its ~7-day lifetime. Spawned so sign-in
+/// doesn't wait on it, and failures are only logged since the session is ours.
+fn revoke_in_background(st: &St, access_token: String) {
+    let http = st.http.clone();
+    let cfg = st.cfg.clone();
+    ntex::rt::spawn(async move {
+        let res = http
+            .post(DISCORD_REVOKE)
+            .basic_auth(&cfg.discord_client_id, Some(&cfg.discord_client_secret))
+            .send_form(&[
+                ("token", access_token.as_str()),
+                ("token_type_hint", "access_token"),
+            ])
+            .await;
+        match res {
+            Ok(r) if r.status().is_success() => {}
+            Ok(r) => eprintln!("revoking Discord token returned {}", r.status()),
+            Err(e) => eprintln!("revoking Discord token: {e}"),
+        }
+    });
 }
 
 async fn logout(st: &St, (): (), req: HttpRequest) -> Result<HttpResponse> {
@@ -245,7 +299,15 @@ pub fn routes(cfg: &mut web::ServiceConfig<St>) {
 
 #[cfg(test)]
 mod tests {
-    use super::safe_next;
+    use super::{pkce_challenge, safe_next};
+
+    #[test]
+    fn pkce_challenge_matches_rfc_7636_vector() {
+        assert_eq!(
+            pkce_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+    }
 
     #[test]
     fn next_must_be_a_local_path() {
