@@ -5,6 +5,7 @@ use std::sync::Arc;
 async fn main() -> Result<()> {
     let cfg = Arc::new(rust::config::Config::from_env()?);
     rust::db::migrate(cfg.db_path.clone())?;
+    rust::auth::delete_expired_sessions(&rust::db::open_db(cfg.db_path.clone())?)?;
     rust::serve(cfg).await?;
     Ok(())
 }

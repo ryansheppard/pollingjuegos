@@ -24,15 +24,27 @@ impl Db {
 
 pub fn open_db(path: String) -> rusqlite::Result<Connection> {
     let conn = Connection::open(path)?;
+    configure(&conn)?;
+    Ok(conn)
+}
+
+fn configure(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute_batch(
         "PRAGMA foreign_keys = ON;
          PRAGMA journal_mode = WAL;
          PRAGMA busy_timeout = 5000;",
-    )?;
-    Ok(conn)
+    )
 }
 
 pub fn migrate(path: String) -> anyhow::Result<()> {
     embedded::migrations::runner().run(&mut open_db(path)?)?;
     Ok(())
+}
+
+#[cfg(test)]
+pub fn test_conn() -> Connection {
+    let mut conn = Connection::open_in_memory().unwrap();
+    configure(&conn).unwrap();
+    embedded::migrations::runner().run(&mut conn).unwrap();
+    conn
 }

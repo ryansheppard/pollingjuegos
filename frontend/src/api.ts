@@ -74,11 +74,9 @@ export async function loadQuarterbacks(): Promise<QuarterbackWithStats[]> {
 }
 
 export async function saveBallot(week: Week, quarterbackIds: number[]): Promise<Ballot> {
-  // Read a fresh token after sign-in; Django may rotate it on login.
-  const { csrf_token } = await request<{ csrf_token: string }>('/csrf')
   return request<Ballot>(`/weeks/${week.season}/${week.week}/ballot`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf_token },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ quarterback_ids: quarterbackIds }),
   })
 }

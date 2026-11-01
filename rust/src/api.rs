@@ -2,7 +2,9 @@ use jiff::Timestamp;
 use ntex::web;
 
 use crate::St;
+use crate::auth::AuthUser;
 use crate::error::Result;
+use crate::middleware::RequireAuth;
 use crate::models::{Me, QuarterbackOut, WeekOut};
 
 async fn quarterbacks(st: &St, (): ()) -> Result<web::HttpResponse> {
@@ -44,13 +46,14 @@ async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
     Ok(web::HttpResponse::Ok().json(&weeks))
 }
 
-async fn me() -> web::HttpResponse {
-    web::HttpResponse::Ok().json(&Me { id: 1 })
+async fn me(user: AuthUser) -> web::HttpResponse {
+    web::HttpResponse::Ok().json(&Me { id: user.id })
 }
 
 pub fn routes(cfg: &mut web::ServiceConfig<St>) {
     cfg.service(
         web::scope("/api")
+            .middleware(RequireAuth)
             .service(web::resource("/quarterbacks").to_with_state(quarterbacks))
             .service(web::resource("/weeks").to_with_state(weeks))
             .service(web::resource("/me").to(me)),
