@@ -11,6 +11,9 @@ pub mod error;
 pub mod middleware;
 pub mod models;
 
+#[cfg(test)]
+mod http_tests;
+
 #[derive(Clone)]
 pub struct AppData {
     pub db: db::Db,
@@ -19,6 +22,11 @@ pub struct AppData {
 }
 
 pub type St = web::AppState<AppData>;
+
+pub fn routes(cfg: &mut web::ServiceConfig<St>) {
+    api::routes(cfg);
+    accounts::routes(cfg);
+}
 
 pub async fn serve(cfg: Arc<config::Config>) -> io::Result<()> {
     let addr = cfg.bind_addr.clone();
@@ -31,12 +39,7 @@ pub async fn serve(cfg: Arc<config::Config>) -> io::Result<()> {
                 http: ntex::client::Client::new(),
             }))
         },
-        async |_| {
-            web::App::<St>::new().configure(|cfg| {
-                api::routes(cfg);
-                accounts::routes(cfg);
-            })
-        },
+        async |_| web::App::<St>::new().configure(routes),
     )
     .bind(addr, SharedCfg::default())?
     .run()

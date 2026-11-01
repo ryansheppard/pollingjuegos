@@ -7,8 +7,8 @@ pj.ryansheppard.xyz {
             trust_pool file /etc/caddy/tls/aop-client.pem
         }
     }
-    @django path /api /api/* /accounts /accounts/* /admin /admin/* /static /static/*
-    handle @django {
+    @backend path /api /api/* /accounts /accounts/*
+    handle @backend {
         reverse_proxy backend:8000
     }
     handle {

@@ -1,37 +1,51 @@
 use jiff::Timestamp;
 use ntex::web::{
     self,
-    types::{Json, Path},
+    types::{Json, Path, Query},
 };
+use serde::Deserialize;
 
 use crate::St;
 use crate::auth::AuthUser;
 use crate::ballots;
 use crate::error::Result;
 use crate::middleware::RequireAuth;
-use crate::models::{BallotIn, Me, QuarterbackOut, WeekOut};
+use crate::models::{BallotIn, Me, WeekOut};
 
-async fn quarterbacks(st: &St, (): ()) -> Result<web::HttpResponse> {
-    let conn = st.db.conn();
-    let mut stmt =
-        conn.prepare_cached("SELECT id, name, team_id FROM quarterbacks ORDER BY name")?;
-    let qbs = stmt
-        .query_map([], |row| {
-            Ok(QuarterbackOut {
-                id: row.get("id")?,
-                name: row.get("name")?,
-                team_id: row.get("team_id")?,
-            })
-        })?
-        .collect::<rusqlite::Result<Vec<_>>>()?;
+#[derive(Deserialize)]
+struct QuarterbackQuery {
+    #[serde(default)]
+    q: String,
+    team_id: Option<i64>,
+    #[serde(default = "default_qb_limit")]
+    limit: i64,
+    #[serde(default)]
+    offset: i64,
+}
 
+fn default_qb_limit() -> i64 {
+    50
+}
+
+async fn quarterbacks(
+    st: &St,
+    (): (),
+    query: Query<QuarterbackQuery>,
+) -> Result<web::HttpResponse> {
+    let QuarterbackQuery {
+        q,
+        team_id,
+        limit,
+        offset,
+    } = query.into_inner();
+    let qbs = ballots::list_quarterbacks(&st.db.conn(), &q, team_id, limit, offset)?;
     Ok(web::HttpResponse::Ok().json(&qbs))
 }
 
 async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
     let conn = st.db.conn();
     let mut stmt = conn.prepare_cached(
-        "SELECT id, season, week, closes_at FROM poll_weeks ORDER BY closes_at DESC",
+        "SELECT id, season, week, closes_at FROM poll_weeks ORDER BY season DESC, week DESC",
     )?;
     let now = Timestamp::now();
     let weeks = stmt

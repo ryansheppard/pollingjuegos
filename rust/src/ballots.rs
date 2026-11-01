@@ -29,6 +29,38 @@ fn qb_from_row(row: &Row) -> rusqlite::Result<QuarterbackWithTeam> {
     })
 }
 
+pub const MAX_QB_PAGE: i64 = 100;
+
+/// `search` is a case-insensitive substring match on QB name, team name, or team abbreviation.
+pub fn list_quarterbacks(
+    conn: &Connection,
+    search: &str,
+    team_id: Option<i64>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<QuarterbackWithTeam>> {
+    if !(1..=MAX_QB_PAGE).contains(&limit) || offset < 0 {
+        return Err(AppError::BadRequest(
+            "limit must be 1-100 and offset nonnegative",
+        ));
+    }
+    Ok(conn
+        .prepare_cached(&format!(
+            "SELECT {QB_COLUMNS}
+             FROM quarterbacks q
+             LEFT JOIN teams t ON t.id = q.team_id
+             WHERE (?1 = ''
+                    OR instr(lower(q.name), lower(?1)) > 0
+                    OR instr(lower(t.name), lower(?1)) > 0
+                    OR instr(lower(t.abbreviation), lower(?1)) > 0)
+               AND (?2 IS NULL OR q.team_id = ?2)
+             ORDER BY q.name, q.id
+             LIMIT ?3 OFFSET ?4"
+        ))?
+        .query_map(params![search.trim(), team_id, limit, offset], qb_from_row)?
+        .collect::<rusqlite::Result<Vec<_>>>()?)
+}
+
 fn week_id(conn: &Connection, season: i64, week: i64) -> Result<i64> {
     conn.prepare_cached("SELECT id FROM poll_weeks WHERE season = ?1 AND week = ?2")?
         .query_row([season, week], |row| row.get(0))
@@ -314,6 +346,60 @@ mod tests {
             .query_row("SELECT count(*) FROM votes", [], |r| r.get(0))
             .unwrap();
         assert_eq!(votes, 0);
+    }
+
+    #[test]
+    fn quarterbacks_include_team_and_paginate() {
+        let conn = setup();
+        let total: i64 = conn
+            .query_row("SELECT count(*) FROM quarterbacks", [], |r| r.get(0))
+            .unwrap();
+        let first = list_quarterbacks(&conn, "", None, 10, 0).unwrap();
+        assert_eq!(first.len(), 10);
+        assert!(first.iter().all(|qb| qb.team.is_some()));
+        assert!(first.windows(2).all(|w| w[0].name <= w[1].name));
+
+        let rest = list_quarterbacks(&conn, "", None, MAX_QB_PAGE, 10).unwrap();
+        assert_eq!(rest.len() as i64, total - 10);
+        assert!(rest.iter().all(|qb| first.iter().all(|f| f.id != qb.id)));
+        assert!(
+            list_quarterbacks(&conn, "", None, 10, total)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn quarterbacks_search_and_filter() {
+        let conn = setup();
+        let names = |search: &str, team_id: Option<i64>| -> Vec<String> {
+            list_quarterbacks(&conn, search, team_id, MAX_QB_PAGE, 0)
+                .unwrap()
+                .into_iter()
+                .map(|qb| qb.name)
+                .collect()
+        };
+        assert_eq!(names("  MAHOMES ", None), ["Patrick Mahomes"]);
+        let by_abbr = names("kc", None);
+        assert!(by_abbr.contains(&"Patrick Mahomes".to_owned()));
+        let chiefs: i64 = conn
+            .query_row("SELECT id FROM teams WHERE abbreviation = 'KC'", [], |r| {
+                r.get(0)
+            })
+            .unwrap();
+        assert_eq!(names("", Some(chiefs)), names("Kansas City", None));
+        assert!(names("", Some(999_999)).is_empty());
+    }
+
+    #[test]
+    fn quarterbacks_reject_bad_pages() {
+        let conn = setup();
+        for (limit, offset) in [(0, 0), (MAX_QB_PAGE + 1, 0), (10, -1)] {
+            assert!(matches!(
+                list_quarterbacks(&conn, "", None, limit, offset),
+                Err(AppError::BadRequest(_))
+            ));
+        }
     }
 
     #[test]

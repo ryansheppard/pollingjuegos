@@ -2,13 +2,6 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize)]
-pub struct QuarterbackOut {
-    pub id: i64,
-    pub name: String,
-    pub team_id: Option<i64>,
-}
-
-#[derive(Serialize)]
 pub struct WeekOut {
     pub id: i64,
     pub season: i64,

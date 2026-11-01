@@ -7,11 +7,8 @@ services:
       registry.digitalocean.com/pollingjuegos/backend:backend-${RELEASE:?required}
     env_file: /etc/pollingjuegos.env
     environment:
-      DJANGO_DB_PATH: /data/db.sqlite3
       DB_PATH: /data/db.sqlite3
       PUBLIC_ORIGIN: https://pj.ryansheppard.xyz
-      NFLREADPY_CACHE: filesystem
-      NFLREADPY_CACHE_DIR: /data/nflreadpy
     volumes:
       - /var/lib/pollingjuegos/data:/data
     cap_drop: [ALL]
@@ -20,7 +17,7 @@ services:
       # Docker's default profile plus io_uring, which ntex's neon-uring runtime needs.
       - 'seccomp=/opt/pollingjuegos/seccomp-io-uring.json'
     restart: unless-stopped
-    # No public port: frontend reaches Gunicorn on the private Compose network.
+    # No public port: frontend reaches the backend on the private Compose network.
 
   frontend:
     image: >-

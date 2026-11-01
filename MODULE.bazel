@@ -76,9 +76,10 @@ toolchains.toolchain(
 )
 use_repo(toolchains, "default_rust_toolchains")
 
-# This extension is optional but can help keep existing `@rules_rust` references working.
-# rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
-# use_repo(rules_rust, "rules_rust")
+# rules_rs re-exports rules_rust's compile rules but not its lint rules, so
+# expose the patched rules_rust it ships for rust_clippy_test.
+rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+use_repo(rules_rust, "rules_rust")
 
 register_toolchains(
     "@default_rust_toolchains//...",
