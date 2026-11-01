@@ -8,8 +8,11 @@ import time
 import nflreadpy
 import polars as pl
 from nflreadpy.downloader import get_downloader
+from opentelemetry import trace
+from opentelemetry.trace import Status, StatusCode
 
 logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
 
 # nflreadpy's own cache decides when files are re-downloaded; this only spares
 # re-parsing them on every request.
@@ -33,19 +36,22 @@ def normalize_name(name: str) -> str:
 
 
 def _load(season: int) -> dict[str, dict]:
-    stats = (
-        nflreadpy.load_player_stats(season, summary_level="reg+post")
-        .filter(pl.col("position") == "QB")
-        .with_columns(dropbacks=pl.col("attempts") + pl.col("sacks_suffered"))
-    )
+    trace.get_current_span().set_attribute("nfl.season", season)
+    with tracer.start_as_current_span("nflreadpy.load_player_stats"):
+        stats = (
+            nflreadpy.load_player_stats(season, summary_level="reg+post")
+            .filter(pl.col("position") == "QB")
+            .with_columns(dropbacks=pl.col("attempts") + pl.col("sacks_suffered"))
+        )
     # ESPN QBR isn't exposed by nflreadpy, but nflverse mirrors it; going through
     # the downloader shares nflreadpy's cache.
-    qbr = (
-        get_downloader()
-        .download("nflverse-data", "espn_data/qbr_season_level")
-        .filter(pl.col("season") == season)
-        .with_columns(key=pl.col("name_display").map_elements(normalize_name))
-    )
+    with tracer.start_as_current_span("nflreadpy.download qbr_season_level"):
+        qbr = (
+            get_downloader()
+            .download("nflverse-data", "espn_data/qbr_season_level")
+            .filter(pl.col("season") == season)
+            .with_columns(key=pl.col("name_display").map_elements(normalize_name))
+        )
     # ESPN only publishes regular season and playoffs separately; a play-weighted
     # mean approximates the combined figure but isn't an official QBR.
     qbr_by_name = dict(
@@ -100,13 +106,17 @@ def qb_stats_by_name() -> dict[str, dict]:
     with _lock:
         if _cached is not None and time.monotonic() < _cached[0]:
             return _cached[1]
-        try:
-            stats = _load(nflreadpy.get_current_season())
-            ttl = CACHE_SECONDS
-        except Exception:
-            logger.exception("Failed to load nflverse QB stats")
-            stats = _cached[1] if _cached is not None else {}
-            ttl = FAILURE_CACHE_SECONDS
+        # Only the refresh is traced: stats_for() hits the cache once per QB.
+        with tracer.start_as_current_span("nfl_stats.refresh") as span:
+            try:
+                stats = _load(nflreadpy.get_current_season())
+                ttl = CACHE_SECONDS
+            except Exception as exc:
+                logger.exception("Failed to load nflverse QB stats")
+                span.record_exception(exc)
+                span.set_status(Status(StatusCode.ERROR))
+                stats = _cached[1] if _cached is not None else {}
+                ttl = FAILURE_CACHE_SECONDS
         _cached = (time.monotonic() + ttl, stats)
         return stats
 

@@ -21,4 +21,8 @@ if os.environ.get("OTEL_CONFIG_FILE") and os.environ.get("HONEYCOMB_API_KEY"):
     logging.basicConfig()
     initialize()
 
+    from config.tracing import instrument_db
+
+    instrument_db()
+
 application = get_wsgi_application()
