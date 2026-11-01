@@ -24,6 +24,8 @@ const removed = ref<{ qb: Quarterback, index: number } | null>(null)
 const dragIndex = ref<number | null>(null)
 // False until the first week has loaded; before that the skeleton holds the layout's shape.
 const ready = ref(false)
+// Draft key of the week whose data actually loaded; draft writes are off until it matches, so a failed load can't wipe a stored draft.
+const loadedKey = ref<string | null>(null)
 let clock: ReturnType<typeof setInterval> | undefined
 let loadId = 0
 
@@ -147,7 +149,7 @@ const dirty = computed(() => !sameIds(ballot.value.map((qb) => qb.id), savedIds.
 function draftStorage() { try { return window.localStorage } catch { return null } }
 watch(ballot, () => {
   const key = draftKey.value
-  if (loading.value || !key || closed.value) return
+  if (loading.value || !key || key !== loadedKey.value || closed.value) return
   const ids = ballot.value.map((qb) => qb.id)
   try {
     if (sameIds(ids, savedIds.value)) draftStorage()?.removeItem(key)
@@ -267,6 +269,7 @@ async function loadWeek() {
   removed.value = null
   error.value = ''
   message.value = ''
+  loadedKey.value = null
   if (!current) {
     clearWeek()
     return
@@ -300,6 +303,7 @@ async function loadWeek() {
     }
     const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
     ballot.value = ids.map((qbId) => byId.get(qbId)!).filter((qb) => !!qb)
+    loadedKey.value = key
   } catch (err) {
     if (id === loadId) {
       // Don't leave the previous week's picks showing under this week's header.
@@ -491,8 +495,17 @@ onMounted(async () => {
     </p>
     <div v-if="!ready" class="layout" aria-busy="true">
       <p class="visually-hidden" role="status">Loading the field…</p>
-      <section class="panel ballot-panel" aria-hidden="true">
-        <div class="panel-heading"><h2>Your top 15</h2></div>
+      <section class="panel ballot-panel" inert>
+        <div class="panel-heading"><div><h2>Your top 15</h2></div></div>
+        <div class="slot-columns">
+          <span class="column-label column-slot">Slot</span>
+          <span class="column-label column-name">Quarterback</span>
+          <div class="lens-switch">
+            <button v-for="option in lenses" :key="option.key" type="button" :aria-pressed="lens === option.key">{{ option.label }}</button>
+          </div>
+          <span class="column-label column-points">Pts</span>
+          <span class="column-controls"></span>
+        </div>
         <ol class="slot-list">
           <li v-for="n in 15" :key="n" class="slot empty">
             <div class="slot-row">
@@ -502,9 +515,14 @@ onMounted(async () => {
             </div>
           </li>
         </ol>
+        <p v-if="lens !== 'crowd'" class="lens-legend">
+          <span class="legend-key"><span class="legend-swatch rank-top"></span>League top 8</span>
+          <span class="legend-key"><span class="legend-swatch rank-mid"></span>9–20</span>
+          <span class="legend-key"><span class="legend-swatch rank-low"></span>21+</span>
+        </p>
         <SaveBar class="save-bar-inline" :count="0" :closed="false" :saving="false" :dirty="false" :has-saved="false" />
       </section>
-      <section class="panel pool-panel" aria-hidden="true">
+      <section class="panel pool-panel" inert>
         <div class="pool-head">
           <div class="pool-title"><h2>The pool</h2><span class="pool-count skeleton-bar"></span></div>
           <span class="field-label">Search by name or team</span>
