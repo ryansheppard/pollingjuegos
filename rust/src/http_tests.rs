@@ -421,6 +421,8 @@ async fn discord_login_sets_state_cookie() {
         "response_type=code",
         "redirect_uri=https%3A%2F%2Fpj.example%2Faccounts%2Fdiscord%2Flogin%2Fcallback%2F",
         "state=",
+        "code_challenge=",
+        "code_challenge_method=S256",
     ] {
         assert!(loc.contains(part), "{loc} missing {part}");
     }
