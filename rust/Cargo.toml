@@ -11,3 +11,4 @@ refinery = { version = "0.10.0", features = ["rusqlite"] }
 rusqlite = { version = "0.41.0", features = ["bundled", "jiff"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.154"
+thiserror = "2.0.21"
