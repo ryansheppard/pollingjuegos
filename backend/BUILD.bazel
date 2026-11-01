@@ -57,6 +57,13 @@ py_library(
         "@pypi//django_ninja",
         "@pypi//gunicorn",
         "@pypi//nflreadpy",
+        "@pypi//opentelemetry_distro",  # keep
+        "@pypi//opentelemetry_exporter_otlp_proto_http",  # keep
+        "@pypi//opentelemetry_instrumentation",
+        "@pypi//opentelemetry_instrumentation_django",  # keep
+        "@pypi//opentelemetry_instrumentation_logging",  # keep
+        "@pypi//opentelemetry_instrumentation_requests",  # keep
+        "@pypi//opentelemetry_sdk",  # keep
         "@pypi//polars",
         "@pypi//whitenoise",  # keep
     ],
@@ -118,6 +125,11 @@ image_layer(
     srcs = {"/app/static": ":collected_static"},
 )
 
+image_layer(
+    name = "otel_config_layer",
+    srcs = {"/app/otelconfig.yaml": "otelconfig.yaml"},
+)
+
 image_manifest(
     name = "image",
     base = "@distroless_cc",
@@ -125,9 +137,11 @@ image_manifest(
     env = {
         "RUNFILES_DIR": "/app.runfiles",
         "DJANGO_STATIC_ROOT": "/app/static",
+        "OTEL_CONFIG_FILE": "/app/otelconfig.yaml",
     },
     layers = [
         ":static_layer",
+        ":otel_config_layer",
         ":python_layers",
     ],
 )

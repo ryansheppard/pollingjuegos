@@ -3,6 +3,8 @@ manifest:
     allauth: django_allauth
     annotated_types: annotated_types
     asgiref: asgiref
+    attr: attrs
+    attrs: attrs
     certifi: certifi
     cffi: cffi
     charset_normalizer: charset_normalizer
@@ -10,12 +12,60 @@ manifest:
     cryptography: cryptography
     django: django
     dotenv: python_dotenv
+    google.api: googleapis_common_protos
+    google.cloud: googleapis_common_protos
+    google.gapic: googleapis_common_protos
+    google.logging: googleapis_common_protos
+    google.longrunning: googleapis_common_protos
+    google.protobuf: protobuf
+    google.rpc: googleapis_common_protos
+    google.type: googleapis_common_protos
     gunicorn: gunicorn
     idna: idna
+    jsonschema: jsonschema
+    jsonschema_specifications: jsonschema_specifications
     jwt: pyjwt
     nflreadpy: nflreadpy
     ninja: django_ninja
     oauthlib: oauthlib
+    opentelemetry.attributes: opentelemetry_api
+    opentelemetry.baggage: opentelemetry_api
+    opentelemetry.configuration: opentelemetry_configuration
+    opentelemetry.context: opentelemetry_api
+    opentelemetry.distro: opentelemetry_distro
+    opentelemetry.environment_variables: opentelemetry_api
+    opentelemetry.exporter.http: opentelemetry_exporter_http_transport
+    opentelemetry.exporter.otlp.common: opentelemetry_exporter_otlp_common
+    opentelemetry.exporter.otlp.proto.common: opentelemetry_exporter_otlp_proto_common
+    opentelemetry.exporter.otlp.proto.http: opentelemetry_exporter_otlp_proto_http
+    opentelemetry.instrumentation.auto_instrumentation: opentelemetry_instrumentation
+    opentelemetry.instrumentation.bootstrap: opentelemetry_instrumentation
+    opentelemetry.instrumentation.bootstrap_gen: opentelemetry_instrumentation
+    opentelemetry.instrumentation.cidict: opentelemetry_instrumentation
+    opentelemetry.instrumentation.dependencies: opentelemetry_instrumentation
+    opentelemetry.instrumentation.distro: opentelemetry_instrumentation
+    opentelemetry.instrumentation.django: opentelemetry_instrumentation_django
+    opentelemetry.instrumentation.environment_variables: opentelemetry_instrumentation
+    opentelemetry.instrumentation.instrumentor: opentelemetry_instrumentation
+    opentelemetry.instrumentation.log_utils: opentelemetry_instrumentation
+    opentelemetry.instrumentation.logging: opentelemetry_instrumentation_logging
+    opentelemetry.instrumentation.propagators: opentelemetry_instrumentation
+    opentelemetry.instrumentation.requests: opentelemetry_instrumentation_requests
+    opentelemetry.instrumentation.sqlcommenter_utils: opentelemetry_instrumentation
+    opentelemetry.instrumentation.utils: opentelemetry_instrumentation
+    opentelemetry.instrumentation.version: opentelemetry_instrumentation
+    opentelemetry.instrumentation.wsgi: opentelemetry_instrumentation_wsgi
+    opentelemetry.metrics: opentelemetry_api
+    opentelemetry.propagate: opentelemetry_api
+    opentelemetry.propagators: opentelemetry_api
+    opentelemetry.proto: opentelemetry_proto
+    opentelemetry.sdk: opentelemetry_sdk
+    opentelemetry.semconv: opentelemetry_semantic_conventions
+    opentelemetry.trace: opentelemetry_api
+    opentelemetry.util.http: opentelemetry_util_http
+    opentelemetry.util.re: opentelemetry_api
+    opentelemetry.util.types: opentelemetry_api
+    opentelemetry.version: opentelemetry_api
     packaging: packaging
     platformdirs: platformdirs
     polars: polars
@@ -23,7 +73,9 @@ manifest:
     pydantic: pydantic
     pydantic_core: pydantic_core
     pydantic_settings: pydantic_settings
+    referencing: referencing
     requests: requests
+    rpds: rpds_py
     ruff: ruff
     sqlparse: sqlparse
     tqdm: tqdm
@@ -33,5 +85,7 @@ manifest:
     tzdata: tzdata
     urllib3: urllib3
     whitenoise: whitenoise
+    wrapt: wrapt
+    yaml: pyyaml
   pip_repository:
     name: pypi
