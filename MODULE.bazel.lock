@@ -22,12 +22,8 @@
     "https://bcr.bazel.build/modules/apple_support/2.5.2/MODULE.bazel": "bb1b7081e390a8d3885f642cb0073dfcf8e7a36525e079fa8f5835af7079c0fe",
     "https://bcr.bazel.build/modules/apple_support/2.8.0/MODULE.bazel": "c45f5176057092afba0be6c48a9ea02101666802f8be536947e099e94757f8ed",
     "https://bcr.bazel.build/modules/apple_support/2.8.0/source.json": "b7f6d87669c206adaa7d82cc44733349c63e341b80a0e049496ebd91d78c3472",
-    "https://bcr.bazel.build/modules/aspect_gazelle_prebuilt/0.0.26/MODULE.bazel": "768eaa859edaa06e9d6269daf1e8e56b00c59db30d353b6fbfb839f658535141",
-    "https://bcr.bazel.build/modules/aspect_gazelle_prebuilt/0.0.26/source.json": "acbadf7531e6498411689bbe230e0b2c12d70e49e67a6f116b440c7a9b958f6c",
     "https://bcr.bazel.build/modules/aspect_rules_js/3.5.1/MODULE.bazel": "f01b4f1bf26713e875ec0fbe9d9c2146d2b173d6194850a7cb63b579c557aab1",
     "https://bcr.bazel.build/modules/aspect_rules_js/3.5.1/source.json": "f2dc028f9110d8aaf262a23267484f1c9d310f8ecf5f832e2a740d192a97756f",
-    "https://bcr.bazel.build/modules/aspect_rules_py/2.0.0-alpha.8/MODULE.bazel": "e4400a0ee94c0d99a800300f6788fa50608988472b778457502803c459c54746",
-    "https://bcr.bazel.build/modules/aspect_rules_py/2.0.0-alpha.8/source.json": "ae5c45e3d8fb8044f7db1527c91a1d86ddc8ecfb9fc9d45b7547c754d32daae2",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.2/MODULE.bazel": "c715a5fb6b13a0086c061618f00d033a4ab6d76cbd1083e38d7ca953b5e547f4",
     "https://bcr.bazel.build/modules/aspect_tools_telemetry/0.5.2/source.json": "4dd300d44767ad4860098b006dda614e67ab0409ae6ec6e133faad303fe9ede8",
     "https://bcr.bazel.build/modules/bazel_features/1.1.1/MODULE.bazel": "27b8c79ef57efe08efccbd9dd6ef70d61b4798320b8d3c134fd571f78963dbcd",
@@ -51,7 +47,6 @@
     "https://bcr.bazel.build/modules/bazel_features/1.41.0/MODULE.bazel": "6e0f87fafed801273c371d41e22a15a6f8abf83fdd7f87d5e44ad317b94433d0",
     "https://bcr.bazel.build/modules/bazel_features/1.42.0/MODULE.bazel": "e8ca15cb2639c5f12183db6dcb678735555d0cdd739b32a0418b6532b5e565f8",
     "https://bcr.bazel.build/modules/bazel_features/1.42.1/MODULE.bazel": "275a59b5406ff18c01739860aa70ad7ccb3cfb474579411decca11c93b951080",
-    "https://bcr.bazel.build/modules/bazel_features/1.43.0/MODULE.bazel": "defa2226f06ba20550d6548c3a2ea2a7929634437a52973869c20c225450eb91",
     "https://bcr.bazel.build/modules/bazel_features/1.45.0/MODULE.bazel": "7daec6d87ab0703417486d4cb948af0b06f55d4d7c08cbb5978c80e79b538edf",
     "https://bcr.bazel.build/modules/bazel_features/1.47.0/MODULE.bazel": "e34df3cb35b1684cfa69923a61ae3803595babd3942cd306a488d51400886b30",
     "https://bcr.bazel.build/modules/bazel_features/1.50.0/MODULE.bazel": "2083ef9c7a469f520890483ccf8e0189d6e71e2117e7752e15e6554433d5ae3e",
@@ -85,8 +80,7 @@
     "https://bcr.bazel.build/modules/buildozer/8.5.1/source.json": "e3386e6ff4529f2442800dee47ad28d3e6487f36a1f75ae39ae56c70f0cd2fbd",
     "https://bcr.bazel.build/modules/bzip2/1.0.8.bcr.3/MODULE.bazel": "29ecf4babfd3c762be00d7573c288c083672ab60e79c833ff7f49ee662e54471",
     "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.3/MODULE.bazel": "f1b7bb2dd53e8f2ef984b39485ec8a44e9076dda5c4b8efd2fb4c6a6e856a31d",
-    "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.7/MODULE.bazel": "1e5e03c383fa64ebbe0942a225c32168fd6ef6b270351bbec481d47d19d1b96d",
-    "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.7/source.json": "34a83d58ae2f1ef6731d1fc8a1b6f07825741aff3f5993b67b67ec21d2c2946e",
+    "https://bcr.bazel.build/modules/gawk/5.3.2.bcr.3/source.json": "ebe931bfe362e4b41e59ee00a528db6074157ff2ced92eb9e970acab2e1089c9",
     "https://bcr.bazel.build/modules/google_benchmark/1.8.2/MODULE.bazel": "a70cf1bba851000ba93b58ae2f6d76490a9feb74192e57ab8e8ff13c34ec50cb",
     "https://bcr.bazel.build/modules/googletest/1.11.0/MODULE.bazel": "3a83f095183f66345ca86aa13c58b59f9f94a2f81999c093d4eeaa2d262d12f4",
     "https://bcr.bazel.build/modules/googletest/1.14.0.bcr.1/MODULE.bazel": "22c31a561553727960057361aa33bf20fb2e98584bc4fec007906e27053f80c6",
@@ -169,7 +163,6 @@
     "https://bcr.bazel.build/modules/rules_cc/0.2.15/MODULE.bazel": "6a0a4a75a57aa6dc888300d848053a58c6b12a29f89d4304e1c41448514ec6e8",
     "https://bcr.bazel.build/modules/rules_cc/0.2.16/MODULE.bazel": "9242fa89f950c6ef7702801ab53922e99c69b02310c39fb6e62b2bd30df2a1d4",
     "https://bcr.bazel.build/modules/rules_cc/0.2.17/MODULE.bazel": "1849602c86cb60da8613d2de887f9566a6d354a6df6d7009f9d04a14402f9a84",
-    "https://bcr.bazel.build/modules/rules_cc/0.2.18/MODULE.bazel": "4460ec36adc8f722a6a2a4ac9374cb91f2acebadaa93fc37966129afb3dece87",
     "https://bcr.bazel.build/modules/rules_cc/0.2.20/MODULE.bazel": "f5c07bce5ddcb99be21a0812ff5aadb439e688b7449c6542152363b2fd859c1a",
     "https://bcr.bazel.build/modules/rules_cc/0.2.22/MODULE.bazel": "94df4328edef9e44d38de5e73b037cd348e75e7ae55f4e21bf07878c41a31ebb",
     "https://bcr.bazel.build/modules/rules_cc/0.2.25/MODULE.bazel": "4a3d4f3606d3b3190be495dbc497acca552807d1d5540661ef0d1658472882e3",
@@ -230,8 +223,7 @@
     "https://bcr.bazel.build/modules/rules_python/1.6.3/MODULE.bazel": "a7b80c42cb3de5ee2a5fa1abc119684593704fcd2fec83165ebe615dec76574f",
     "https://bcr.bazel.build/modules/rules_python/1.7.0/MODULE.bazel": "d01f995ecd137abf30238ad9ce97f8fc3ac57289c8b24bd0bf53324d937a14f8",
     "https://bcr.bazel.build/modules/rules_python/1.8.0/MODULE.bazel": "c151c025dbcc93d8f62ab68ecc313c9176a868a0e6386981bf2a12aec77cbe7b",
-    "https://bcr.bazel.build/modules/rules_python/1.9.0/MODULE.bazel": "afc3a05f29f09f2d3ee95ad99a145250dab41a2b2d8d6f82cc91936b3213282c",
-    "https://bcr.bazel.build/modules/rules_python/1.9.0/source.json": "3921ea0b65298d51aead5b9e4a82203d7be9b5918619b58b53f1c259f4e63169",
+    "https://bcr.bazel.build/modules/rules_python/1.8.0/source.json": "356397eed5b46971d8c585c92098d70495078a80bf18bebcb4209f44b495f3e6",
     "https://bcr.bazel.build/modules/rules_rs/0.1.3/MODULE.bazel": "aa52bc031c1d894ca4920fedc96d5479e78ed8e10be6e877097a7d83b18c398a",
     "https://bcr.bazel.build/modules/rules_rs/0.1.3/source.json": "c59cc9c4f47df37fe4a87afaabe2deda4bd3cf2032d125cbf289d2a380f0f3c1",
     "https://bcr.bazel.build/modules/rules_runfiles_group/0.1.0/MODULE.bazel": "bb7adb77a1ff532651c392981490cb8e7e369c7d0642511729bedadc05c3f4ad",
@@ -257,7 +249,6 @@
     "https://bcr.bazel.build/modules/swift_argument_parser/1.3.1.1/MODULE.bazel": "5e463fbfba7b1701d957555ed45097d7f984211330106ccd1352c6e0af0dcf91",
     "https://bcr.bazel.build/modules/swift_argument_parser/1.3.1.2/MODULE.bazel": "75aab2373a4bbe2a1260b9bf2a1ebbdbf872d3bd36f80bff058dccd82e89422f",
     "https://bcr.bazel.build/modules/swift_argument_parser/1.3.1.2/source.json": "5fba48bbe0ba48761f9e9f75f92876cafb5d07c0ce059cc7a8027416de94a05b",
-    "https://bcr.bazel.build/modules/tar.bzl/0.10.1/MODULE.bazel": "bf5fda5b5ccef8c3c4a5f4886144377386e0baa382972f257acb42dcf40ea908",
     "https://bcr.bazel.build/modules/tar.bzl/0.10.4/MODULE.bazel": "e8f9ff79199e8d9eaad7f1b0a77ad74b30bb82d794b87d8ca942bead5de83ae9",
     "https://bcr.bazel.build/modules/tar.bzl/0.10.4/source.json": "20143442376c03426f6135292ba02d825cb75308aa47e6bf42dd4cc5a435c2ff",
     "https://bcr.bazel.build/modules/upb/0.0.0-20220923-a547704/MODULE.bazel": "7298990c00040a0e2f121f6c32544bab27d4452f80d9ce51349b1a28f3005c43",
@@ -280,61 +271,10 @@
   },
   "selectedYankedVersions": {},
   "moduleExtensions": {
-    "@@aspect_gazelle_prebuilt+//:extensions.bzl%prebuilt_extension": {
-      "general": {
-        "bzlTransitiveDigest": "8PvXL/ebm/P/lWd86cCyO1h2cK2+QDlAJrufZQGb32s=",
-        "usagesDigest": "eAsVNX5xDjdKJ7BqB6JLwytDNCmqE+XMR4joebHntFk=",
-        "recordedInputs": [
-          "REPO_MAPPING:aspect_gazelle_prebuilt+,bazel_tools bazel_tools"
-        ],
-        "generatedRepoSpecs": {
-          "aspect_gazelle_prebuilt_linux_amd64": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
-            "attributes": {
-              "executable": true,
-              "sha256": "8299ca2c3722ce856b9230642065f406c0a04751a9bfddcb1c389e354fdcee72",
-              "urls": [
-                "https://github.com/aspect-build/aspect-gazelle/releases/download/prebuilt-v0.0.26/aspect_gazelle-linux_amd64"
-              ]
-            }
-          },
-          "aspect_gazelle_prebuilt_linux_arm64": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
-            "attributes": {
-              "executable": true,
-              "sha256": "c3569bea30d8fcfab4f998dd6128740a42b7d6a37b83825bc34c6eb79eddebf5",
-              "urls": [
-                "https://github.com/aspect-build/aspect-gazelle/releases/download/prebuilt-v0.0.26/aspect_gazelle-linux_arm64"
-              ]
-            }
-          },
-          "aspect_gazelle_prebuilt_darwin_amd64": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
-            "attributes": {
-              "executable": true,
-              "sha256": "faa79e70011cfda2b18d3cfc699a3e7ac58a0301e0ea928bb507299c1beaa2d3",
-              "urls": [
-                "https://github.com/aspect-build/aspect-gazelle/releases/download/prebuilt-v0.0.26/aspect_gazelle-darwin_amd64"
-              ]
-            }
-          },
-          "aspect_gazelle_prebuilt_darwin_arm64": {
-            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_file",
-            "attributes": {
-              "executable": true,
-              "sha256": "b130d6689b6be0d5290754c39df351add3bbe4020d61e9fb5b1b0ccc7dd214f7",
-              "urls": [
-                "https://github.com/aspect-build/aspect-gazelle/releases/download/prebuilt-v0.0.26/aspect_gazelle-darwin_arm64"
-              ]
-            }
-          }
-        }
-      }
-    },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "general": {
         "bzlTransitiveDigest": "ihzLOoAnQP6Y5iSYOhEjvb6uxEbA6ZgH8Qikau2lGRU=",
-        "usagesDigest": "79KNM7W2rrmZjZ522BG0SEOipWcH0u0Si0ZfYNtsjds=",
+        "usagesDigest": "i1q5Tw61sCQgje0XwPpPp5vCfnW+9CguelScKlQRSAk=",
         "recordedInputs": [
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_lib bazel_lib+",
           "REPO_MAPPING:aspect_tools_telemetry+,bazel_skylib bazel_skylib+",
@@ -345,8 +285,6 @@
             "repoRuleId": "@@aspect_tools_telemetry+//:extension.bzl%tel_repository",
             "attributes": {
               "deps": {
-                "aspect_gazelle_prebuilt": "0.0.26",
-                "aspect_rules_py": "2.0.0-alpha.8",
                 "aspect_rules_js": "3.5.1",
                 "aspect_tools_telemetry": "0.5.2"
               },
@@ -548,10 +486,178 @@
         }
       }
     },
+    "@@rules_python+//python/extensions:config.bzl%config": {
+      "general": {
+        "bzlTransitiveDigest": "sJuhZihyVty+0xOVsXH1eSSGv2ufRPo9x8QCFFNs90s=",
+        "usagesDigest": "EocbSr4I3/Shk4QaFool8b8navUiUFqgzF9bOaaYfFk=",
+        "recordedInputs": [
+          "REPO_MAPPING:rules_python+,bazel_tools bazel_tools",
+          "REPO_MAPPING:rules_python+,pypi__build rules_python++config+pypi__build",
+          "REPO_MAPPING:rules_python+,pypi__click rules_python++config+pypi__click",
+          "REPO_MAPPING:rules_python+,pypi__colorama rules_python++config+pypi__colorama",
+          "REPO_MAPPING:rules_python+,pypi__importlib_metadata rules_python++config+pypi__importlib_metadata",
+          "REPO_MAPPING:rules_python+,pypi__installer rules_python++config+pypi__installer",
+          "REPO_MAPPING:rules_python+,pypi__more_itertools rules_python++config+pypi__more_itertools",
+          "REPO_MAPPING:rules_python+,pypi__packaging rules_python++config+pypi__packaging",
+          "REPO_MAPPING:rules_python+,pypi__pep517 rules_python++config+pypi__pep517",
+          "REPO_MAPPING:rules_python+,pypi__pip rules_python++config+pypi__pip",
+          "REPO_MAPPING:rules_python+,pypi__pip_tools rules_python++config+pypi__pip_tools",
+          "REPO_MAPPING:rules_python+,pypi__pyproject_hooks rules_python++config+pypi__pyproject_hooks",
+          "REPO_MAPPING:rules_python+,pypi__setuptools rules_python++config+pypi__setuptools",
+          "REPO_MAPPING:rules_python+,pypi__tomli rules_python++config+pypi__tomli",
+          "REPO_MAPPING:rules_python+,pypi__wheel rules_python++config+pypi__wheel",
+          "REPO_MAPPING:rules_python+,pypi__zipp rules_python++config+pypi__zipp"
+        ],
+        "generatedRepoSpecs": {
+          "rules_python_internal": {
+            "repoRuleId": "@@rules_python+//python/private:internal_config_repo.bzl%internal_config_repo",
+            "attributes": {
+              "transition_setting_generators": {},
+              "transition_settings": []
+            }
+          },
+          "pypi__build": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/e2/03/f3c8ba0a6b6e30d7d18c40faab90807c9bb5e9a1e3b2fe2008af624a9c97/build-1.2.1-py3-none-any.whl",
+              "sha256": "75e10f767a433d9a86e50d83f418e83efc18ede923ee5ff7df93b6cb0306c5d4",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__click": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/00/2e/d53fa4befbf2cfa713304affc7ca780ce4fc1fd8710527771b58311a3229/click-8.1.7-py3-none-any.whl",
+              "sha256": "ae74fb96c20a0277a1d615f1e4d73c8414f5a98db8b799a7931d1582f3390c28",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__colorama": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl",
+              "sha256": "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__importlib_metadata": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/2d/0a/679461c511447ffaf176567d5c496d1de27cbe34a87df6677d7171b2fbd4/importlib_metadata-7.1.0-py3-none-any.whl",
+              "sha256": "30962b96c0c223483ed6cc7280e7f0199feb01a0e40cfae4d4450fc6fab1f570",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__installer": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/e5/ca/1172b6638d52f2d6caa2dd262ec4c811ba59eee96d54a7701930726bce18/installer-0.7.0-py3-none-any.whl",
+              "sha256": "05d1933f0a5ba7d8d6296bb6d5018e7c94fa473ceb10cf198a92ccea19c27b53",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__more_itertools": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/50/e2/8e10e465ee3987bb7c9ab69efb91d867d93959095f4807db102d07995d94/more_itertools-10.2.0-py3-none-any.whl",
+              "sha256": "686b06abe565edfab151cb8fd385a05651e1fdf8f0a14191e4439283421f8684",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__packaging": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/49/df/1fceb2f8900f8639e278b056416d49134fb8d84c5942ffaa01ad34782422/packaging-24.0-py3-none-any.whl",
+              "sha256": "2ddfb553fdf02fb784c234c7ba6ccc288296ceabec964ad2eae3777778130bc5",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__pep517": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/25/6e/ca4a5434eb0e502210f591b97537d322546e4833dcb4d470a48c375c5540/pep517-0.13.1-py3-none-any.whl",
+              "sha256": "31b206f67165b3536dd577c5c3f1518e8fbaf38cbc57efff8369a392feff1721",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__pip": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/8a/6a/19e9fe04fca059ccf770861c7d5721ab4c2aebc539889e97c7977528a53b/pip-24.0-py3-none-any.whl",
+              "sha256": "ba0d021a166865d2265246961bec0152ff124de910c5cc39f1156ce3fa7c69dc",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__pip_tools": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/0d/dc/38f4ce065e92c66f058ea7a368a9c5de4e702272b479c0992059f7693941/pip_tools-7.4.1-py3-none-any.whl",
+              "sha256": "4c690e5fbae2f21e87843e89c26191f0d9454f362d8acdbd695716493ec8b3a9",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__pyproject_hooks": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/ae/f3/431b9d5fe7d14af7a32340792ef43b8a714e7726f1d7b69cc4e8e7a3f1d7/pyproject_hooks-1.1.0-py3-none-any.whl",
+              "sha256": "7ceeefe9aec63a1064c18d939bdc3adf2d8aa1988a510afec15151578b232aa2",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__setuptools": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/90/99/158ad0609729111163fc1f674a5a42f2605371a4cf036d0441070e2f7455/setuptools-78.1.1-py3-none-any.whl",
+              "sha256": "c3a9c4211ff4c309edb8b8c4f1cbfa7ae324c4ba9f91ff254e3d305b9fd54561",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__tomli": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/97/75/10a9ebee3fd790d20926a90a2547f0bf78f371b2f13aa822c759680ca7b9/tomli-2.0.1-py3-none-any.whl",
+              "sha256": "939de3e7a6161af0c887ef91b7d41a53e7c5a1ca976325f429cb46ea9bc30ecc",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__wheel": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/7d/cd/d7460c9a869b16c3dd4e1e403cce337df165368c71d6af229a74699622ce/wheel-0.43.0-py3-none-any.whl",
+              "sha256": "55c570405f142630c6b9f72fe09d9b67cf1477fcf543ae5b8dcb1f5b7377da81",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          },
+          "pypi__zipp": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "url": "https://files.pythonhosted.org/packages/da/55/a03fd7240714916507e1fcf7ae355bd9d9ed2e6db492595f1a67f61681be/zipp-3.18.2-py3-none-any.whl",
+              "sha256": "dce197b859eb796242b0622af1b8beb0a722d52aa2f57133ead08edd5bf5374e",
+              "type": "zip",
+              "build_file_content": "package(default_visibility = [\"//visibility:public\"])\n\nload(\"@rules_python//python:py_library.bzl\", \"py_library\")\n\npy_library(\n    name = \"lib\",\n    srcs = glob([\"**/*.py\"]),\n    data = glob([\"**/*\"], exclude=[\n        # These entries include those put into user-installed dependencies by\n        # data_exclude to avoid non-determinism.\n        \"**/*.py\",\n        \"**/*.pyc\",\n        \"**/*.pyc.*\",  # During pyc creation, temp files named *.pyc.NNN are created\n        \"**/*.dist-info/RECORD\",\n        \"BUILD\",\n        \"WORKSPACE\",\n    ]),\n    # This makes this directory a top-level in the python import\n    # search path for anything that depends on this.\n    imports = [\".\"],\n)\n"
+            }
+          }
+        }
+      }
+    },
     "@@rules_python+//python/uv:uv.bzl%uv": {
       "general": {
-        "bzlTransitiveDigest": "/TRCIwkFYo7fpSOLJ54wXFHVpcYJ5edXrsPRRAmCrAg=",
-        "usagesDigest": "6MjoD3H+netDdhklgMWks3NARpHVXxy8kfsMe9XXPa8=",
+        "bzlTransitiveDigest": "IgkgxNrtlAec7OnaFrWoCC5NQhHcY/aIz4jsqcNMm8Y=",
+        "usagesDigest": "yXvWfXAzpBeW71mWgwU3AqAzXX/dFACnx12eYvBsJ8w=",
         "recordedInputs": [
           "REPO_MAPPING:rules_python+,bazel_tools bazel_tools",
           "REPO_MAPPING:rules_python+,platforms platforms"
@@ -658,460 +764,6 @@
     }
   },
   "facts": {
-    "@@aspect_rules_py+//py:extensions.bzl%python_interpreters": {
-      "release_index_v2_20261013_https://github.com/astral-sh/python-build-standalone/releases/download_install_only_stripped": {
-        "3.11/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.11.17+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "5e656e09fc73c7ae10e4df66e6aa253f1f5980509b3be8a242e883d67a5fdf26"
-        },
-        "3.11/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.11.17+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "61b7c7c3abdd64bf8550cc9a90d20eb8daaa2e344467443bd1ae2402f1902ab4"
-        },
-        "3.11/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.11.17+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "3d09fa150bebc6c4f888f8d601328b46fd17f1be5c62cd390a353b7ccff6ed51"
-        },
-        "3.11/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.11.17+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "6b0dbbfcd6bdce068d0914c47a249e348dc3e4b5e76541f4c0ba0f50d852186f"
-        },
-        "3.11/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.11.17+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "475d2b9f778c32e0f3ac0c7a076d75b93126e8a395482a6d6e6ce06687f08dd9"
-        },
-        "3.11/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.11.17+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "a870f5bb476ebe4483761ffdcd39b316dbef9f59f158706296d2c6f138057cae"
-        },
-        "3.11/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.11.17+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "54a38c5e7cc1a5fd2b0182b495f29606dc1455d18ebfd3b5bf0a3c09253b5031"
-        },
-        "3.11/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.11.17+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "3b8e5a248bcc351265ffe68f5e457668a2e09c99a47f81f658988c7d3d107522"
-        },
-        "3.11/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.11.17+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.11.17",
-          "sha256": "7e2c98e2466d47d15175e86bf6b7ae6ee00b26f1e1fc54aafbec16c21db4f301"
-        },
-        "3.12/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.12.15+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "9866e11cf2ae9caa1e671383786f248859a52dd8bfb702fb4c0dc2c65f1d36de"
-        },
-        "3.12/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.12.15+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "864342350eec45119bf295d7af7d60a36842e1c6d181cce760fcc6f60e5a072a"
-        },
-        "3.12/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.12.15+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "9467a99bacc7d90b64b02de7fa9ecfc99b72905e64e74f7ff6b460ad95cfed5a"
-        },
-        "3.12/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.12.15+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "efd6e0900431214a9b559803071939421a8a8489375b9be063221a8cfe991c60"
-        },
-        "3.12/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.12.15+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "d3a85eab8ca86e4f8ee854a48c483774997826e76d46cc01ae69fadcbb6a0d24"
-        },
-        "3.12/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.12.15+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "d09998f85752b646873a8a6bc7eea442a0d251b1c8d2413aa8ea06ef131c3335"
-        },
-        "3.12/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.12.15+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "7a2aef48e5ee569e310b29b32681debbc5d888e92790d85331a47736c6b06aad"
-        },
-        "3.12/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.12.15+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "178d3d83b6e8e99285a65d3fce9c16b87952cc5efdb4d1a0e3ff3be18ff0fc9c"
-        },
-        "3.12/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.12.15+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.12.15",
-          "sha256": "99e53f010e58b62dd5bc849cc4822bde9fff7171c6d020fbe4afed2d861ccc77"
-        },
-        "3.13/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.13.16+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "16a5332fb0dcb77f163fc8f8cbccd95be1644cc53e68e5d2a79f50afd6680a0e"
-        },
-        "3.13/aarch64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "853f0e13fa0a925b29001fd9834ed590879d2041d375f716031fbb7ed9a5a4a5"
-        },
-        "3.13/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.13.16+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "9c324563049caf05f54d8dedc382621d75e2cd652a19415256681d324009cb67"
-        },
-        "3.13/aarch64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-aarch64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "98a55ca1daec0b08a70dcbc363c4a7bab5826235a32b18782e8ee72c54a65ba0"
-        },
-        "3.13/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.13.16+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "69a30ed26198178732c37b8de0b6b5191479fbacfe526954da776befe38f18e7"
-        },
-        "3.13/aarch64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-aarch64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "8122b36eb7a9c2e375d88c7cc616d14664c3e05b6978b39d63f58192a367292b"
-        },
-        "3.13/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.13.16+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "9f503edbbfe384c9bf770d99ce787f7aea60bbc6a96ffb3b5933f72c9e71fb6f"
-        },
-        "3.13/aarch64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-aarch64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "fa0fc7f44ecb6a7e8e3f6bd5a28edf3448e0fca6ab3a850e3ccc5f11f6272bc7"
-        },
-        "3.13/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.13.16+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "b2e390b00d5ee3443ef5503f82b14a21ea07e03b324e46f9d2008e5aa7fdde8a"
-        },
-        "3.13/i686-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "79f734873926d2c837d310dac305c8974fe34ea875e62cbae663990db5b84548"
-        },
-        "3.13/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.13.16+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "f507ae04eb7747cd97cb484e8c5d83936cbfc52d9b08a1f35c00b47c707b1ae1"
-        },
-        "3.13/x86_64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "a5d92b2c430697036bea0f23e9193296496d11cd17ba6ac0eed68869423a334e"
-        },
-        "3.13/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.13.16+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "7aba3985d4cee1c7cacb963ca6aa08a5d3e695d7f9609d9fabc56f22ddcf5a06"
-        },
-        "3.13/x86_64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "7ef0c5ed86bc65584d89004b85db42ee12d37d1c88cd76e89cf4c1c06082135b"
-        },
-        "3.13/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.13.16+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "d0080766b6b74aeb81e1949ef0d9a20e6c17f7b160fb295a69b936ccb17660be"
-        },
-        "3.13/x86_64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "d5a13e024444b052523c6b33300c99b11e11ea976c9b37ed54f243dd6d146b20"
-        },
-        "3.13/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.13.16+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.13.16",
-          "sha256": "a177ce931ddc616c0e76eebc6a583196739dc704d47af853f5958cb95b2b1c96"
-        },
-        "3.13/x86_64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.13.16+20261013-x86_64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.13.16",
-          "sha256": "593f89299facf87501c610dbb78f54c8d5aac16107fb8d63ce62703df3f89ec6"
-        },
-        "3.14/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.14.8+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "994adadc202c5df0b4570192cc9a70e3f2c131e512f4a125c56efa8562f44b28"
-        },
-        "3.14/aarch64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "8ff8ffaef9ddfa53beec701353dd9a8af13348a99b08fd13b8218fe47d6276de"
-        },
-        "3.14/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.14.8+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "9c0b221413b0353550bdbf8f0b7bba21c02c8a1199b39dd6af08f06cd6be6851"
-        },
-        "3.14/aarch64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-aarch64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "56ac36855c02419c37565ad27344c73619b1cf8b2e4ff0f93a66e77d51de9f17"
-        },
-        "3.14/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.14.8+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "d8ae14f303d3971431184cf423ae5467202de2bc19bf6491a490250b87647d4b"
-        },
-        "3.14/aarch64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-aarch64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "b96ae51b204a64390e90df2be8cad658ec42bd742eea60cf8122de0f55a58746"
-        },
-        "3.14/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.14.8+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "7b6714675192dc381e14de4f2615c73d8ce5c15775562f4843282c34c3df8b6c"
-        },
-        "3.14/aarch64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-aarch64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "88c3bce17ca17e70ead8e913b26f886ec8937601da202c000d10d24de6426249"
-        },
-        "3.14/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.14.8+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "91d627ad00e633fcd04d7fb867ee30afdf2c6f455704c293a035f752d0c4725c"
-        },
-        "3.14/i686-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "d00335508941b9e1312ce11d9cd446ac45f3de91bc0b11350c69f6e0a4da52fe"
-        },
-        "3.14/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.14.8+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "f0137337ecf6234b30c9c955219dae2d71e1a00387c4d204d6c6929e24bf9a90"
-        },
-        "3.14/x86_64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "326200309e11b4acfaae1091c893cf6f7baa35f4d1cfeed26b64e4a9065c0449"
-        },
-        "3.14/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.14.8+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "dce851f280b986764037bd952d40819e94ccceb08ac914004123f43ce17f4095"
-        },
-        "3.14/x86_64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "ebec994bb916ca8183f3b59f85c24f1b02930ea2dba6635896876d6f95f71cb4"
-        },
-        "3.14/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.14.8+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "d8faa1b588506b9e3e5a3f57807bb056d534a1641a6b10d15b6ea3f0b413b960"
-        },
-        "3.14/x86_64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "d1ebefdb19272371b023f9ac75c9456f3df84b74f818684364c8782261587db8"
-        },
-        "3.14/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.14.8+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.14.8",
-          "sha256": "6ee5218694c3ddf1098aa306bb01b621d14c0bca4134b317614d9daa99f16ba2"
-        },
-        "3.14/x86_64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.14.8+20261013-x86_64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.14.8",
-          "sha256": "f5b26af274ded171897dd5e17935b16f61c31958a9cdeb5556225b71457e7d54"
-        },
-        "3.15/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.15.0+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "b4ab2009803cef142e4ebf2ebef225f6875f83cc35caf4eefb437aa9b2b76783"
-        },
-        "3.15/aarch64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "ebd2cb28b6cf134660382d7a6b482a46b115917771d04857205ae79558b842e8"
-        },
-        "3.15/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.15.0+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "01367b4d9a6882429133772f69c3373e1d0c7e40ee7d57be9a7259338de16dfa"
-        },
-        "3.15/aarch64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-aarch64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "5b3102dceefdd3cf9b1aa496a57e79e1e2e49b9ada41b1a115b749f95d6e2ee2"
-        },
-        "3.15/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.15.0+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "064778ca701efc4c8366d0b235a2a0f5dbe14d921aeb2ef4f5c7b93e5a75cbd0"
-        },
-        "3.15/aarch64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-aarch64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "cdee375c16dfbcc0e056dc04051d6d7c6adc087d66f3c9146818b36b6cacf082"
-        },
-        "3.15/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.15.0+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "d6064f89c264cce8444e4eb8c2d5041827fe20bf0836b2042a91807ff8a9596d"
-        },
-        "3.15/aarch64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-aarch64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "c8f04a6396d99777e2e58e0949a9a0e508ff32ed684dcee7eb3439250bf47d3d"
-        },
-        "3.15/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.15.0+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "d8557aab1b41a1ad7b6ecd54ecb20f1e5027dc732578135aab7622fbcb829e4a"
-        },
-        "3.15/i686-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "73f5e1e16d7ddac9f6dabd850c28462f8690e1098d2f217b9f5a47428af7fb4c"
-        },
-        "3.15/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.15.0+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "4760e8fb2821441c0dbc72be49a25400c6ae90be4daa7e2a49617ed09f6a2919"
-        },
-        "3.15/x86_64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "49bdcd38155ac67a7e1c5f4c04b411a41f04db43a109bcb5296b81e095cdb767"
-        },
-        "3.15/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.15.0+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "743d2269e74a98f7c4281dbc2e8710c171be1965693720aac818ff0157e4d965"
-        },
-        "3.15/x86_64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "a966ece53897b836a54db82bc4c2cf683572d33313f0cb0b42e3343df7e500ca"
-        },
-        "3.15/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.15.0+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "69740dcd9b3480b3d53760f2d3b75582adb14fa54434628dea32480ddede542a"
-        },
-        "3.15/x86_64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "6f28d0cf288253466985697a6274cb3236ecee6bee15750f5e25074aa9ad6a85"
-        },
-        "3.15/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.15.0+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.15.0",
-          "sha256": "e33aa97230e4a72c108a82365fd3d14a28d04a8451d15d0e9bc2b0521d2fec11"
-        },
-        "3.15/x86_64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.15.0+20261013-x86_64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.15.0",
-          "sha256": "05e46aac7a1dca1850e64d90cb430dccbfa7a3c39827a883f250157124a4f0bc"
-        },
-        "3.16/aarch64-apple-darwin/default": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "9454f3cf979e16bff98ec33551f0dc3240e7798ea5bc0d2a58571d9a47675f08"
-        },
-        "3.16/aarch64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "c6d6db49ba848f6361fb4a05288f1188e5662e050ee01a7b76e6c31b1a44b2e9"
-        },
-        "3.16/aarch64-pc-windows-msvc/default": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "6324e441e2b00c1ce12e45b78340413219dcb45c77284b99165f35de477be37e"
-        },
-        "3.16/aarch64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "dd871f7ca0446d321e385dbf053f9418e277221a7910811b877fbd883cb64bb4"
-        },
-        "3.16/aarch64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "7753180294e95ed64707c41a1c61f34614fd498effc21aaa945a876cdfa1cc38"
-        },
-        "3.16/aarch64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "4d25b69788651baf6d174677efb9c89c8e9c54fc496b59ee7a1e4e610c7322fd"
-        },
-        "3.16/aarch64-unknown-linux-musl/default": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "8f1c218c1af0d5cc82dcc60b190bd4d783686551f7a26ed09dc0f9247a8a5499"
-        },
-        "3.16/aarch64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-aarch64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "1251c278d12ce01e880d91e60ab6aff17e7d992ed18119cc3c5c45da0abca005"
-        },
-        "3.16/i686-pc-windows-msvc/default": {
-          "filename": "cpython-3.16.0a1+20261013-i686-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "4fe372d4e867408a1d0c1ccbe9a8e7d2d014c4d85de81d72bbfa68aacdd3e34d"
-        },
-        "3.16/i686-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-i686-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "73a48214ce786e4965219a2e3f54397c44a295db0c1bcb48b548a5ebe506c9b3"
-        },
-        "3.16/x86_64-apple-darwin/default": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-apple-darwin-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "a619f333e0daa553e1e51ebcbea1b02a28c86c9d0b104dbd31d0356b1aa69d2a"
-        },
-        "3.16/x86_64-apple-darwin/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-apple-darwin-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "5ec6915eb90f8bdc12bcaab4104254ec996be6d5ff6dbea9cd08438237da8188"
-        },
-        "3.16/x86_64-pc-windows-msvc/default": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "0adde3b7fd839e6170888cb75031834ab2ca7117e132d47bc2907b331fb18fbd"
-        },
-        "3.16/x86_64-pc-windows-msvc/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-pc-windows-msvc-freethreaded+pgo-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "c2e2b772d1733bab28c36195335e8bf0687c8ca5dbf31d018b54f46b88311e61"
-        },
-        "3.16/x86_64-unknown-linux-gnu/default": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "c8c3ed1c3cc4e1df73887b9838ce39c263178b83f28a6faef515257cfa887c7a"
-        },
-        "3.16/x86_64-unknown-linux-gnu/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-unknown-linux-gnu-freethreaded+pgo+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "6724f930272894d5176ec57e24646b54bf671c19fd339aef8392a439a9c52260"
-        },
-        "3.16/x86_64-unknown-linux-musl/default": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-unknown-linux-musl-install_only_stripped.tar.gz",
-          "full_version": "3.16.0a1",
-          "sha256": "4c95099241ddcb907b707260746f93bda7f25fa8aef0f7d5aef75efccf40b8f1"
-        },
-        "3.16/x86_64-unknown-linux-musl/freethreaded": {
-          "filename": "cpython-3.16.0a1+20261013-x86_64-unknown-linux-musl-freethreaded+lto-full.tar.zst",
-          "full_version": "3.16.0a1",
-          "sha256": "85a78dcd3465a0f912d4002c166854eb9e2126ffed090da1ac8880ad0c0d2178"
-        }
-      }
-    },
     "@@aspect_tools_telemetry+//:extension.bzl%telemetry": {
       "notice_version": "3"
     },
