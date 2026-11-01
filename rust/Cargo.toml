@@ -6,9 +6,11 @@ edition = "2024"
 [dependencies]
 anyhow = "1.0.104"
 base64 = "0.23.1"
+bytes = "1.12.1"
 cookie = "0.18.2"
 jiff = { version = "0.2.38", features = ["serde"] }
 ntex = { version = "4.5.0", features = ["neon-uring", "cookie", "rustls"] }
+parquet = { version = "60.1.0", default-features = false, features = ["snap"] }
 rand = "0.10.3"
 refinery = { version = "0.10.0", features = ["rusqlite"] }
 rusqlite = { version = "0.41.0", features = ["bundled", "jiff"] }

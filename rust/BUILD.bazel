@@ -2,10 +2,10 @@ load("@crates//:defs.bzl", "aliases", "all_crate_deps")
 load("@rules_img//img:layer.bzl", "image_layer")
 load("@rules_img//img:load.bzl", "image_load")
 load("@rules_img//img:push.bzl", "image_push")
-load("@rules_rust//rust:defs.bzl", "rust_clippy_test")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_clippy_test")
 load(":image.bzl", "opt_image_manifest")
 
 rust_library(
@@ -69,6 +69,8 @@ opt_image_manifest(
     layers = [
         ":layer",
     ],
+    # Builds the app a second time in opt via with_cfg; keep it out of `bazel test //...`.
+    tags = ["manual"],
 )
 
 image_load(
@@ -78,6 +80,7 @@ image_load(
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
     tag = "latest",
+    tags = ["manual"],
 )
 
 image_push(
@@ -85,4 +88,5 @@ image_push(
     image = ":image",
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
+    tags = ["manual"],
 )

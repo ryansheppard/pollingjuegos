@@ -10,7 +10,8 @@ use crate::auth::AuthUser;
 use crate::ballots;
 use crate::error::Result;
 use crate::middleware::RequireAuth;
-use crate::models::{BallotIn, Me, WeekOut};
+use crate::models::{BallotIn, Me, QuarterbackWithStats, WeekOut};
+use crate::nfl_stats::NflStats;
 
 #[derive(Deserialize)]
 struct QuarterbackQuery {
@@ -38,7 +39,14 @@ async fn quarterbacks(
         limit,
         offset,
     } = query.into_inner();
-    let qbs = ballots::list_quarterbacks(&st.db.conn(), &q, team_id, limit, offset)?;
+    let stats = st.nfl.snapshot();
+    let qbs: Vec<_> = ballots::list_quarterbacks(&st.db.conn(), &q, team_id, limit, offset)?
+        .into_iter()
+        .map(|quarterback| QuarterbackWithStats {
+            stats: NflStats::stats_for(&stats, &quarterback.name),
+            quarterback,
+        })
+        .collect();
     Ok(web::HttpResponse::Ok().json(&qbs))
 }
 

@@ -22,6 +22,7 @@ jobs:
           disk-cache: ${{ github.workflow }}
           repository-cache: true
           external-cache: true
+          cache-save: ${{ github.event_name == 'push' }}
       - run: hk check --all
       - run: bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
@@ -46,7 +47,7 @@ jobs:
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
       - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
         with:
-          disk-cache: ${{ github.workflow }}
+          disk-cache: publish
           repository-cache: true
           external-cache: true
       - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f  # v2.5.2
