@@ -3,6 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <!-- Runs before first paint so dark-mode visitors never see the light canvas; App.vue reads the result. -->
+    <script>
+      {
+        let saved = null
+        try { saved = localStorage.getItem('pollingjuegos-theme') } catch {}
+        document.documentElement.dataset.theme = saved === 'light' || saved === 'dark' ? saved
+          : matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+      }
+    </script>
+    <style>
+      html { background: #f3f1ec; color-scheme: light; }
+      html[data-theme='dark'] { background: #0e1b2b; color-scheme: dark; }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" />
     <title>PollingJuegos</title>
   </head>
   <body>
