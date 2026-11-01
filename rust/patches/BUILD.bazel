@@ -1,0 +1,1 @@
+exports_files(["libsqlite3-sys-manifest-dir.patch"])

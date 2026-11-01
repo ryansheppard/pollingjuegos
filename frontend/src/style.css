@@ -124,7 +124,8 @@ svg { width: 16px; height: 16px; flex-shrink: 0; fill: none; stroke: currentColo
 .header-icon svg { width: 18px; height: 18px; stroke-width: 2; }
 .step-button:hover:not(:disabled), .header-icon:hover, .week-stepper select:hover:not(:disabled) { background: rgba(255, 255, 255, .12); }
 .header-actions { display: flex; align-items: center; gap: .5rem; }
-.sign-out { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .5rem; color: var(--on-dark-muted); font-size: .82rem; font-weight: 700; text-decoration: none; }
+.sign-out-form { display: contents; }
+.sign-out { display: inline-flex; align-items: center; min-height: 44px; padding: 0 .5rem; border: 0; background: none; color: var(--on-dark-muted); font: inherit; font-size: .82rem; font-weight: 700; text-decoration: none; cursor: pointer; }
 .sign-out:hover { color: var(--accent-bright); }
 
 /* Scoreboard band */
