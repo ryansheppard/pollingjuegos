@@ -1,4 +1,5 @@
-# Copy this file to /opt/pollingjuegos/compose.yaml. Set RELEASE to a pushed
+# Copy this file to /opt/pollingjuegos/compose.yaml, and seccomp-io-uring.json
+# alongside it. Set RELEASE to a pushed
 # image tag before running Compose; never use `latest` for a production release.
 services:
   backend:
@@ -7,12 +8,17 @@ services:
     env_file: /etc/pollingjuegos.env
     environment:
       DJANGO_DB_PATH: /data/db.sqlite3
+      DB_PATH: /data/db.sqlite3
+      PUBLIC_ORIGIN: https://pj.ryansheppard.xyz
       NFLREADPY_CACHE: filesystem
       NFLREADPY_CACHE_DIR: /data/nflreadpy
     volumes:
       - /var/lib/pollingjuegos/data:/data
     cap_drop: [ALL]
-    security_opt: ['no-new-privileges:true']
+    security_opt:
+      - 'no-new-privileges:true'
+      # Docker's default profile plus io_uring, which ntex's neon-uring runtime needs.
+      - 'seccomp=/opt/pollingjuegos/seccomp-io-uring.json'
     restart: unless-stopped
     # No public port: frontend reaches Gunicorn on the private Compose network.
 

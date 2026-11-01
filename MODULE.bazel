@@ -3,6 +3,10 @@ bazel_dep(name = "aspect_rules_py", version = "2.0.0-alpha.8")
 bazel_dep(name = "rules_img", version = "0.3.23")
 bazel_dep(name = "aspect_rules_js", version = "3.5.1")
 bazel_dep(name = "bazel_lib", version = "3.7.2")
+bazel_dep(name = "rules_rs", version = "0.1.3")
+bazel_dep(name = "llvm", version = "0.8.25")
+bazel_dep(name = "platforms", version = "1.1.0")
+bazel_dep(name = "with_cfg.bzl", version = "0.12.0")
 
 uv = use_extension("@aspect_rules_py//uv:extensions.bzl", "uv")
 uv.declare_hub(
@@ -56,3 +60,44 @@ pull(
     repository = "distroless/cc-debian13",
     tag = "nonroot",
 )
+
+pull(
+    name = "distroless_base_nossl",
+    digest = "sha256:e6b0f82595aa1edde72c8054de7a9dca30f0f8f54820c37a167c0ddfc21c5c67",
+    registry = "gcr.io",
+    repository = "distroless/base-nossl-debian13",
+    tag = "nonroot",
+)
+
+toolchains = use_extension("@rules_rs//rs/toolchains:module_extension.bzl", "toolchains")
+toolchains.toolchain(
+    edition = "2024",
+    version = "1.99.1",
+)
+use_repo(toolchains, "default_rust_toolchains")
+
+# This extension is optional but can help keep existing `@rules_rust` references working.
+# rules_rust = use_extension("@rules_rs//rs:rules_rust.bzl", "rules_rust")
+# use_repo(rules_rust, "rules_rust")
+
+register_toolchains(
+    "@default_rust_toolchains//...",
+    "@llvm//toolchain:all",
+)
+
+crate = use_extension("@rules_rs//rs:extensions.bzl", "crate")
+crate.from_cargo(
+    name = "crates",
+    cargo_lock = "//:Cargo.lock",
+    cargo_toml = "//:Cargo.toml",
+    platform_triples = ["x86_64-unknown-linux-gnu"],
+)
+
+# build.rs uses env!("CARGO_MANIFEST_DIR"), which bakes the compile sandbox's
+# absolute path into the build script; read it at runtime instead.
+crate.annotation(
+    crate = "libsqlite3-sys",
+    patch_args = ["-p1"],
+    patches = ["//rust/patches:libsqlite3-sys-manifest-dir.patch"],
+)
+use_repo(crate, "crates")

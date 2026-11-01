@@ -1,0 +1,11 @@
+--- a/build.rs	2026-11-01 17:01:10.272174386 -0500
++++ b/build.rs	2026-11-01 17:01:10.273517171 -0500
+@@ -143,7 +143,7 @@
+                 (dir.to_owned(), dir.join(sqlcipher_src::SOURCE_FILE))
+             }
+             _ => {
+-                let dir = format!("{}/{lib_name}", env!("CARGO_MANIFEST_DIR"));
++                let dir = format!("{}/{lib_name}", env::var("CARGO_MANIFEST_DIR").unwrap());
+                 let source = format!("{lib_name}/sqlite3.c");
+                 (
+                     std::path::PathBuf::from(dir),
