@@ -1,8 +1,10 @@
 use anyhow::Result;
+use std::sync::Arc;
 
 #[ntex::main]
 async fn main() -> Result<()> {
-    rust::db::migrate()?;
-    rust::serve("127.0.0.1:8000").await?;
+    let cfg = Arc::new(rust::config::Config::from_env()?);
+    rust::db::migrate(cfg.db_path.clone())?;
+    rust::serve(cfg).await?;
     Ok(())
 }

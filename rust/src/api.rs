@@ -6,7 +6,7 @@ use crate::error::Result;
 use crate::models::{Me, QuarterbackOut, WeekOut};
 
 async fn quarterbacks(st: &St, (): ()) -> Result<web::HttpResponse> {
-    let conn = st.conn();
+    let conn = st.db.conn();
     let mut stmt =
         conn.prepare_cached("SELECT id, name, team_id FROM quarterbacks ORDER BY name")?;
     let qbs = stmt
@@ -23,7 +23,7 @@ async fn quarterbacks(st: &St, (): ()) -> Result<web::HttpResponse> {
 }
 
 async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
-    let conn = st.conn();
+    let conn = st.db.conn();
     let mut stmt = conn.prepare_cached(
         "SELECT id, season, week, closes_at FROM poll_weeks ORDER BY closes_at DESC",
     )?;

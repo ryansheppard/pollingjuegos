@@ -4,8 +4,6 @@ use std::{
     rc::Rc,
 };
 
-const DB_PATH: &str = "./db.sqlite3";
-
 mod embedded {
     use refinery::embed_migrations;
     embed_migrations!("./migrations");
@@ -24,8 +22,8 @@ impl Db {
     }
 }
 
-pub fn open_db() -> rusqlite::Result<Connection> {
-    let conn = Connection::open(DB_PATH)?;
+pub fn open_db(path: String) -> rusqlite::Result<Connection> {
+    let conn = Connection::open(path)?;
     conn.execute_batch(
         "PRAGMA foreign_keys = ON;
          PRAGMA journal_mode = WAL;
@@ -34,7 +32,7 @@ pub fn open_db() -> rusqlite::Result<Connection> {
     Ok(conn)
 }
 
-pub fn migrate() -> anyhow::Result<()> {
-    embedded::migrations::runner().run(&mut open_db()?)?;
+pub fn migrate(path: String) -> anyhow::Result<()> {
+    embedded::migrations::runner().run(&mut open_db(path)?)?;
     Ok(())
 }
