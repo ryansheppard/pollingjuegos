@@ -4,6 +4,7 @@ use std::{io, sync::Arc};
 pub mod accounts;
 pub mod api;
 pub mod auth;
+pub mod ballots;
 pub mod config;
 pub mod db;
 pub mod error;

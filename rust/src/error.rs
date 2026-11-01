@@ -11,6 +11,8 @@ pub enum AppError {
     Unauthorized,
     #[error("cross-origin request rejected")]
     CrossOrigin,
+    #[error("not found")]
+    NotFound,
     #[error("bad request: {0}")]
     BadRequest(&'static str),
     #[error("Discord account not approved")]
@@ -31,6 +33,9 @@ impl AppError {
             }
             AppError::CrossOrigin => web::HttpResponse::Forbidden()
                 .json(&json!({ "detail": "Cross-origin request rejected" })),
+            AppError::NotFound => {
+                web::HttpResponse::NotFound().json(&json!({ "detail": "Not Found" }))
+            }
             AppError::BadRequest(detail) => {
                 web::HttpResponse::BadRequest().json(&json!({ "detail": detail }))
             }
