@@ -51,6 +51,7 @@ impl Harness {
                 discord_client_secret: "client-secret".into(),
             }),
             http: ntex::client::Client::new(),
+            nfl: Default::default(),
         });
         let app = test::init_service_st(st, web::App::<St>::new().configure(crate::routes)).await;
         test::call_service(&app, req).await
@@ -198,6 +199,8 @@ async fn quarterbacks_shape_and_pagination() {
     assert!(qb["team"]["id"].is_i64());
     assert!(qb["team"]["name"].is_string());
     assert!(qb["team"]["abbreviation"].is_string());
+    // The harness never loads nflverse data, so the key is present but null.
+    assert_eq!(qb.get("stats"), Some(&Value::Null));
 
     // Mirrors the frontend's loadQuarterbacks loop, which stops on a short page.
     let mut seen = Vec::new();

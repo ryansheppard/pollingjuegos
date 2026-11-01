@@ -1,6 +1,8 @@
 use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 
+use crate::nfl_stats::QbStats;
+
 #[derive(Serialize)]
 pub struct WeekOut {
     pub id: i64,
@@ -27,6 +29,14 @@ pub struct QuarterbackWithTeam {
     pub id: i64,
     pub name: String,
     pub team: Option<TeamOut>,
+}
+
+#[derive(Serialize)]
+pub struct QuarterbackWithStats {
+    #[serde(flatten)]
+    pub quarterback: QuarterbackWithTeam,
+    /// Season-to-date including playoffs; null when nflverse has no line for this QB.
+    pub stats: Option<QbStats>,
 }
 
 #[derive(Deserialize)]
