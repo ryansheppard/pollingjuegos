@@ -22,16 +22,14 @@ const openSlot = ref<number | null>(null)
 const searchInput = ref<HTMLInputElement | null>(null)
 const removed = ref<{ qb: Quarterback, index: number } | null>(null)
 const dragIndex = ref<number | null>(null)
+// False until the first week has loaded; before that the skeleton holds the layout's shape.
+const ready = ref(false)
 let clock: ReturnType<typeof setInterval> | undefined
-document.documentElement.dataset.theme = theme.value
 let loadId = 0
 
+// index.html picks the theme before first paint.
 function getInitialTheme(): 'light' | 'dark' {
-  try {
-    const saved = localStorage.getItem('pollingjuegos-theme')
-    if (saved === 'light' || saved === 'dark') return saved
-  } catch { /* Storage can be disabled; the toggle still works for this visit. */ }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  return document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
 }
 
 function toggleTheme() {
@@ -265,16 +263,17 @@ function move(index: number, direction: number) {
 async function loadWeek() {
   const current = week.value
   const id = ++loadId
-  rankings.value = null
-  savedIds.value = []
-  ballot.value = []
   openSlot.value = null
   removed.value = null
   error.value = ''
   message.value = ''
-  if (!current) return
+  if (!current) {
+    clearWeek()
+    return
+  }
   // A closed week has nothing left to vote on, so lead with its results.
-  tab.value = closed.value ? 'results' : 'ballot'
+  const nextTab = closed.value ? 'results' : 'ballot'
+  // The previous week's data stays up (dimmed, inert) until this one arrives, so the layout doesn't collapse.
   loading.value = true
   try {
     const base = `/weeks/${current.season}/${current.week}`
@@ -283,6 +282,7 @@ async function loadWeek() {
       request<Ballot>(`${base}/ballot`),
     ])
     if (id !== loadId) return
+    tab.value = nextTab
     rankings.value = results
     savedIds.value = mine.entries.map((entry) => entry.quarterback.id)
     let ids = savedIds.value
@@ -301,10 +301,23 @@ async function loadWeek() {
     const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
     ballot.value = ids.map((qbId) => byId.get(qbId)!).filter((qb) => !!qb)
   } catch (err) {
-    if (id === loadId) error.value = err instanceof Error ? err.message : 'Could not load this week.'
+    if (id === loadId) {
+      // Don't leave the previous week's picks showing under this week's header.
+      clearWeek()
+      tab.value = nextTab
+      error.value = err instanceof Error ? err.message : 'Could not load this week.'
+    }
   } finally {
-    if (id === loadId) loading.value = false
+    if (id === loadId) {
+      loading.value = false
+      ready.value = true
+    }
   }
+}
+function clearWeek() {
+  rankings.value = null
+  savedIds.value = []
+  ballot.value = []
 }
 
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
@@ -405,10 +418,11 @@ onMounted(async () => {
     const chronological = (a: Week, b: Week) => a.season - b.season || a.week - b.week
     const initialWeek = openWeeks.sort(chronological)[0] ?? [...weekList].sort(chronological).at(-1)
     if (initialWeek) selected.value = `${initialWeek.season}/${initialWeek.week}`
-    else loading.value = false
+    else { loading.value = false; ready.value = true }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load poll data.'
     loading.value = false
+    ready.value = true
   }
 })
 </script>
@@ -450,17 +464,18 @@ onMounted(async () => {
           <p class="eyebrow">The smoljuegos QB poll</p>
           <h1>Who’s the GOAT<span class="period">?</span></h1>
         </div>
-        <dl v-if="week" class="stats">
-          <div><dt>{{ closed ? 'Voting closed' : 'Voting closes' }}</dt><dd>{{ closesLabel }}</dd></div>
+        <!-- Always rendered so the band is full height from first paint. -->
+        <dl class="stats">
+          <div><dt>{{ closed ? 'Voting closed' : 'Voting closes' }}</dt><dd>{{ week ? closesLabel : '—' }}</dd></div>
           <div><dt>Time left</dt><dd class="stat-accent">{{ timeLeft }}</dd></div>
-          <div><dt>Ballots in</dt><dd>{{ rankings?.ballots ?? '—' }}</dd></div>
+          <div><dt>Ballots in</dt><dd>{{ loading ? '—' : rankings?.ballots ?? '—' }}</dd></div>
         </dl>
       </div>
-      <div v-if="weeks.length" class="tabs" role="tablist" aria-label="View">
-        <button id="tab-ballot" type="button" role="tab" class="tab" :aria-selected="tab === 'ballot'" aria-controls="panel-ballot" @click="tab = 'ballot'">
+      <div class="tabs" role="tablist" aria-label="View">
+        <button id="tab-ballot" type="button" role="tab" class="tab" :aria-selected="tab === 'ballot'" aria-controls="panel-ballot" :disabled="ready && !weeks.length" @click="tab = 'ballot'">
           Your ballot <span class="tab-chip">{{ ballot.length }}/15</span>
         </button>
-        <button id="tab-results" type="button" role="tab" class="tab" :aria-selected="tab === 'results'" aria-controls="panel-results" @click="tab = 'results'">
+        <button id="tab-results" type="button" role="tab" class="tab" :aria-selected="tab === 'results'" aria-controls="panel-results" :disabled="ready && !weeks.length" @click="tab = 'results'">
           <span>Results<span class="tab-extra"> · Top 10</span></span>
         </button>
       </div>
@@ -474,10 +489,41 @@ onMounted(async () => {
       <span>Removed {{ removed.qb.name }}.</span>
       <button v-if="canUndo" type="button" class="undo-button" :disabled="saving" @click="undoRemove">Undo</button>
     </p>
-    <p v-if="loading" class="notice loading" role="status">Loading the field…</p>
+    <div v-if="!ready" class="layout" aria-busy="true">
+      <p class="visually-hidden" role="status">Loading the field…</p>
+      <section class="panel ballot-panel" aria-hidden="true">
+        <div class="panel-heading"><h2>Your top 15</h2></div>
+        <ol class="slot-list">
+          <li v-for="n in 15" :key="n" class="slot empty">
+            <div class="slot-row">
+              <span class="slot-number">{{ String(n).padStart(2, '0') }}</span>
+              <span class="skeleton-bar"></span>
+              <span class="slot-points">{{ 16 - n }} pts</span>
+            </div>
+          </li>
+        </ol>
+        <SaveBar class="save-bar-inline" :count="0" :closed="false" :saving="false" :dirty="false" :has-saved="false" />
+      </section>
+      <section class="panel pool-panel" aria-hidden="true">
+        <div class="pool-head">
+          <div class="pool-title"><h2>The pool</h2><span class="pool-count skeleton-bar"></span></div>
+          <span class="field-label">Search by name or team</span>
+          <div class="search-wrap">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+            <input type="search" placeholder="Allen, BUF, Bills…" disabled tabindex="-1" />
+          </div>
+        </div>
+        <ul class="pool-list">
+          <li v-for="n in 15" :key="n">
+            <span class="team-badge skeleton-bar"></span>
+            <span class="pool-player"><span class="skeleton-bar"></span><span class="skeleton-bar short"></span></span>
+          </li>
+        </ul>
+      </section>
+    </div>
     <p v-else-if="!weeks.length" class="notice loading">No weeks have been created yet.</p>
 
-    <div v-else-if="tab === 'ballot'" id="panel-ballot" class="layout" role="tabpanel" aria-labelledby="tab-ballot">
+    <div v-else-if="tab === 'ballot'" id="panel-ballot" class="layout" :class="{ 'is-stale': loading }" :inert="loading" :aria-busy="loading" role="tabpanel" aria-labelledby="tab-ballot">
       <section class="panel ballot-panel" aria-labelledby="ballot-title">
         <div class="panel-heading">
           <div>
@@ -586,7 +632,7 @@ onMounted(async () => {
       <SaveBar class="save-bar-mobile" :count="ballot.length" :closed="closed" :saving="saving" :dirty="dirty" :has-saved="savedIds.length > 0" @add="focusSearch" @save="submit" />
     </div>
 
-    <div v-else id="panel-results" class="layout" role="tabpanel" aria-labelledby="tab-results">
+    <div v-else id="panel-results" class="layout" :class="{ 'is-stale': loading }" :inert="loading" :aria-busy="loading" role="tabpanel" aria-labelledby="tab-results">
       <section class="panel results-panel" aria-labelledby="rankings-title">
         <div class="panel-heading">
           <div>
