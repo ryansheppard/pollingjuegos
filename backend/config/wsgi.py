@@ -13,4 +13,12 @@ from django.core.wsgi import get_wsgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
+if os.environ.get("OTEL_CONFIG_FILE") and os.environ.get("HONEYCOMB_API_KEY"):
+    import logging
+
+    from opentelemetry.instrumentation.auto_instrumentation import initialize
+
+    logging.basicConfig()
+    initialize()
+
 application = get_wsgi_application()
