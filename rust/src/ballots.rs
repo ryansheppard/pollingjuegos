@@ -39,11 +39,32 @@ pub fn list_quarterbacks(
     limit: i64,
     offset: i64,
 ) -> Result<Vec<QuarterbackWithTeam>> {
+    check_page(limit, offset)?;
+    query_quarterbacks(conn, search, team_id, limit, offset)
+}
+
+pub fn check_page(limit: i64, offset: i64) -> Result<()> {
     if !(1..=MAX_QB_PAGE).contains(&limit) || offset < 0 {
         return Err(AppError::BadRequest(
             "limit must be 1-100 and offset nonnegative",
         ));
     }
+    Ok(())
+}
+
+/// Every quarterback in `list_quarterbacks` order.
+pub fn all_quarterbacks(conn: &Connection) -> Result<Vec<QuarterbackWithTeam>> {
+    // SQLite treats a negative LIMIT as no limit.
+    query_quarterbacks(conn, "", None, -1, 0)
+}
+
+fn query_quarterbacks(
+    conn: &Connection,
+    search: &str,
+    team_id: Option<i64>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<QuarterbackWithTeam>> {
     Ok(conn
         .prepare_cached(&format!(
             "SELECT {QB_COLUMNS}

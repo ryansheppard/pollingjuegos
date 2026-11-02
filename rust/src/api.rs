@@ -5,12 +5,15 @@ use ntex::web::{
 };
 use serde::Deserialize;
 
+use ntex::util::Bytes;
+
 use crate::St;
 use crate::auth::AuthUser;
 use crate::ballots;
-use crate::error::Result;
+use crate::cache::{DbVersion, json_array};
+use crate::error::{AppError, Result};
 use crate::middleware::RequireAuth;
-use crate::models::{BallotIn, Me, QuarterbackWithStats, WeekOut};
+use crate::models::{BallotIn, Me, QuarterbackWithStats, QuarterbackWithTeam, WeekOut};
 use crate::nfl_stats::NflStats;
 
 #[derive(Deserialize)]
@@ -40,12 +43,31 @@ async fn quarterbacks(
         offset,
     } = query.into_inner();
     let stats = st.nfl.snapshot();
-    let qbs: Vec<_> = ballots::list_quarterbacks(&st.db.conn(), &q, team_id, limit, offset)?
+    let with_stats = |quarterback: QuarterbackWithTeam| QuarterbackWithStats {
+        stats: NflStats::stats_for(&stats, &quarterback.name),
+        quarterback,
+    };
+    let conn = st.db.conn();
+
+    // The frontend only ever pages through the unfiltered list.
+    if q.trim().is_empty() && team_id.is_none() {
+        ballots::check_page(limit, offset)?;
+        let items = st.cache.quarterbacks(DbVersion::of(&conn)?, &stats, || {
+            ballots::all_quarterbacks(&conn)?
+                .into_iter()
+                .map(|qb| Ok(Bytes::from(serde_json::to_vec(&with_stats(qb))?)))
+                .collect::<Result<Vec<_>>>()
+        })?;
+        let page = items
+            .iter()
+            .skip(usize::try_from(offset).unwrap_or(usize::MAX))
+            .take(usize::try_from(limit).unwrap_or(usize::MAX));
+        return Ok(crate::json_body(web::HttpResponse::Ok(), json_array(page)));
+    }
+
+    let qbs: Vec<_> = ballots::list_quarterbacks(&conn, &q, team_id, limit, offset)?
         .into_iter()
-        .map(|quarterback| QuarterbackWithStats {
-            stats: NflStats::stats_for(&stats, &quarterback.name),
-            quarterback,
-        })
+        .map(with_stats)
         .collect();
     Ok(crate::json(web::HttpResponse::Ok(), &qbs))
 }
@@ -98,8 +120,13 @@ async fn submit_ballot(
 
 async fn rankings(st: &St, (): (), path: Path<(i64, i64)>) -> Result<web::HttpResponse> {
     let (season, week) = path.into_inner();
-    let rankings = ballots::rankings(&st.db.conn(), season, week)?;
-    Ok(crate::json(web::HttpResponse::Ok(), &rankings))
+    let conn = st.db.conn();
+    let body = st.cache.rankings(season, week, DbVersion::of(&conn)?, || {
+        Ok::<_, AppError>(Bytes::from(serde_json::to_vec(&ballots::rankings(
+            &conn, season, week,
+        )?)?))
+    })?;
+    Ok(crate::json_body(web::HttpResponse::Ok(), body))
 }
 
 async fn me(user: AuthUser) -> web::HttpResponse {

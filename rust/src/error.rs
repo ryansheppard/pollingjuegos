@@ -19,6 +19,8 @@ pub enum AppError {
     NotApproved,
     #[error("Discord request failed: {0}")]
     Upstream(String),
+    #[error("serializing response: {0}")]
+    Serialize(#[from] serde_json::Error),
 }
 
 impl AppError {
@@ -46,6 +48,10 @@ impl AppError {
             ),
             AppError::NotApproved => {
                 web::HttpResponse::Forbidden().body("Discord account not approved.")
+            }
+            AppError::Serialize(_) => {
+                eprintln!("{self}");
+                web::HttpResponse::InternalServerError().into()
             }
             AppError::Upstream(_) => {
                 eprintln!("{self}");

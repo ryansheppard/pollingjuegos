@@ -9,8 +9,11 @@ use ntex::web::{self, test};
 use serde_json::{Value, json};
 
 use crate::auth::{self, SESSION_COOKIE};
+use crate::ballots;
+use crate::cache::ResponseCache;
 use crate::config::Config;
 use crate::db::{self, Db};
+use crate::nfl_stats::{NflStats, QbStats, normalize_name};
 use crate::{AppData, St};
 
 const ORIGIN: &str = "https://pj.example";
@@ -19,11 +22,17 @@ struct Harness {
     db: Db,
     user_id: i64,
     token: String,
+    // Shared across calls the way one worker's are, so caching is exercised.
+    nfl: NflStats,
+    cache: ResponseCache,
 }
 
 impl Harness {
     fn new() -> Self {
-        let db = Db::new(db::test_conn());
+        Self::with_db(Db::new(db::test_conn()))
+    }
+
+    fn with_db(db: Db) -> Self {
         let (user_id, token) = {
             let conn = db.conn();
             conn.execute_batch(
@@ -37,7 +46,13 @@ impl Harness {
             let user_id = auth::upsert_user(&conn, "100", "voter").unwrap();
             (user_id, auth::create_session(&conn, user_id).unwrap())
         };
-        Self { db, user_id, token }
+        Self {
+            db,
+            user_id,
+            token,
+            nfl: NflStats::default(),
+            cache: ResponseCache::default(),
+        }
     }
 
     async fn call(&self, req: Request) -> Response {
@@ -51,7 +66,8 @@ impl Harness {
                 discord_client_secret: "client-secret".into(),
             }),
             http: ntex::client::Client::new(),
-            nfl: Default::default(),
+            nfl: self.nfl.clone(),
+            cache: self.cache.clone(),
         });
         let app = test::init_service_st(st, web::App::<St>::new().configure(crate::routes)).await;
         test::call_service(&app, req).await
@@ -538,4 +554,122 @@ async fn logout_requires_same_origin_and_ends_session() {
         h.call(h.get("/api/me").to_request()).await.status(),
         StatusCode::UNAUTHORIZED
     );
+}
+
+/// The cached unfiltered list must page exactly like the SQL path it replaces.
+#[ntex::test]
+async fn cached_quarterback_pages_match_the_database() {
+    let h = Harness::new();
+    let total = ballots::all_quarterbacks(&h.db.conn()).unwrap().len();
+    for (limit, offset) in [(50, 0), (100, 0), (10, 85), (7, total - 3), (5, total + 10)] {
+        let expected: Value = {
+            let conn = h.db.conn();
+            let page = ballots::list_quarterbacks(&conn, "", None, limit, offset as i64).unwrap();
+            serde_json::to_value(
+                page.into_iter()
+                    .map(|quarterback| crate::models::QuarterbackWithStats {
+                        stats: None,
+                        quarterback,
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .unwrap()
+        };
+        let uri = format!("/api/quarterbacks?limit={limit}&offset={offset}");
+        // The second request is served from the entry the first one built.
+        for _ in 0..2 {
+            let got = json_body(h.call(h.get(&uri).to_request()).await).await;
+            assert_eq!(got, expected, "{uri}");
+        }
+    }
+    // Filtered requests bypass the cache but must still validate pages.
+    let res = h
+        .call(h.get("/api/quarterbacks?limit=101").to_request())
+        .await;
+    assert_eq!(res.status(), StatusCode::BAD_REQUEST);
+}
+
+#[ntex::test]
+async fn cached_quarterbacks_follow_stats_refresh() {
+    let h = Harness::new();
+    let first = json_body(
+        h.call(h.get("/api/quarterbacks?limit=100").to_request())
+            .await,
+    )
+    .await;
+    let name = first[0]["name"].as_str().unwrap().to_owned();
+    assert_eq!(first[0]["stats"], Value::Null);
+
+    let stats = QbStats {
+        season: 2026,
+        games: 8,
+        dropbacks: 300,
+        epa: Some(12.5),
+        epa_per_dropback: Some(0.04),
+        cpoe: Some(1.5),
+        qbr: Some(61.0),
+        qualified: true,
+        qualified_count: 32,
+        qbr_rank: Some(9),
+        epa_rank: Some(11),
+        cpoe_rank: Some(7),
+    };
+    h.nfl
+        .replace([(normalize_name(&name), stats)].into_iter().collect());
+
+    let refreshed = json_body(
+        h.call(h.get("/api/quarterbacks?limit=100").to_request())
+            .await,
+    )
+    .await;
+    assert_eq!(refreshed[0]["name"], name.as_str());
+    assert_eq!(refreshed[0]["stats"]["qbr_rank"], 9);
+}
+
+/// Each worker has its own connection, so the cache must notice writes from
+/// this connection (`total_changes`) and from any other (`data_version`).
+#[ntex::test]
+async fn cached_rankings_follow_writes_from_any_connection() {
+    let dir = std::env::var_os("TEST_TMPDIR").map_or_else(std::env::temp_dir, Into::into);
+    let path = dir.join(format!("pj-rankings-cache-{}.sqlite3", std::process::id()));
+    let path_str = path.to_str().unwrap().to_owned();
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(format!("{path_str}{suffix}"));
+    }
+    db::migrate(path_str.clone()).unwrap();
+    let h = Harness::with_db(Db::new(db::open_db(path_str.clone()).unwrap()));
+    let ballots_now = async || {
+        json_body(
+            h.call(h.get("/api/weeks/2026/1/rankings").to_request())
+                .await,
+        )
+        .await["ballots"]
+            .as_i64()
+            .unwrap()
+    };
+
+    assert_eq!(ballots_now().await, 0);
+    assert_eq!(ballots_now().await, 0);
+
+    let ids = h.qb_ids(15);
+    let res = h
+        .call(h.put_ballot("/api/weeks/2026/1/ballot", &ids).to_request())
+        .await;
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(ballots_now().await, 1, "own-connection write");
+
+    let other = db::open_db(path_str.clone()).unwrap();
+    let voter = auth::upsert_user(&other, "200", "other").unwrap();
+    ballots::submit_ballot(&other, 2026, 1, voter, &ids).unwrap();
+    assert_eq!(ballots_now().await, 2, "write from another connection");
+
+    other
+        .execute("DELETE FROM ballots WHERE voter_id = ?1", [voter])
+        .unwrap();
+    assert_eq!(ballots_now().await, 1, "hand-written delete elsewhere");
+
+    drop(other);
+    for suffix in ["", "-wal", "-shm"] {
+        let _ = std::fs::remove_file(format!("{path_str}{suffix}"));
+    }
 }
