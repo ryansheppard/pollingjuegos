@@ -42,7 +42,7 @@ pub struct QbStats {
     pub cpoe_rank: Option<i64>,
 }
 
-type ByName = HashMap<String, QbStats>;
+pub type ByName = HashMap<String, QbStats>;
 
 /// Shared by every worker; readers clone the inner `Arc` so a refresh never
 /// blocks a request for longer than a pointer swap.
@@ -58,7 +58,7 @@ impl NflStats {
         stats.get(&normalize_name(name)).cloned()
     }
 
-    fn replace(&self, stats: ByName) {
+    pub(crate) fn replace(&self, stats: ByName) {
         *self.0.write().unwrap_or_else(|e| e.into_inner()) = Arc::new(stats);
     }
 

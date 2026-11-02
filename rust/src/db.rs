@@ -1,4 +1,4 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, config::DbConfig};
 use std::{
     cell::{Ref, RefCell},
     rc::Rc,
@@ -29,6 +29,12 @@ pub fn open_db(path: String) -> rusqlite::Result<Connection> {
 }
 
 fn configure(conn: &Connection) -> rusqlite::Result<()> {
+    // Without QPSG, SQLite marks joins filtered by a `?` to re-plan whenever
+    // that parameter is rebound, and rusqlite clears bindings when a statement
+    // returns to its cache, so every `prepare_cached` join was being reparsed and
+    // replanned on every call (~18us vs ~2us). Value-dependent plans only help
+    // with ANALYZE stats or bound LIKE patterns, which nothing here uses.
+    conn.set_db_config(DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG, true)?;
     conn.execute_batch(
         "PRAGMA foreign_keys = ON;
          PRAGMA journal_mode = WAL;
@@ -43,8 +49,27 @@ pub fn migrate(path: String) -> anyhow::Result<()> {
 
 #[cfg(test)]
 pub fn test_conn() -> Connection {
+    let mut conn = test_conn_at(None);
+    migrate_test_conn(&mut conn);
+    conn
+}
+
+/// For testing a migration against rows written under an older schema:
+/// `version` stops after that migration, `None` applies none.
+#[cfg(test)]
+pub fn test_conn_at(version: Option<u32>) -> Connection {
     let mut conn = Connection::open_in_memory().unwrap();
     configure(&conn).unwrap();
-    embedded::migrations::runner().run(&mut conn).unwrap();
+    if let Some(v) = version {
+        embedded::migrations::runner()
+            .set_target(refinery::Target::Version(v.try_into().unwrap()))
+            .run(&mut conn)
+            .unwrap();
+    }
     conn
+}
+
+#[cfg(test)]
+pub fn migrate_test_conn(conn: &mut Connection) {
+    embedded::migrations::runner().run(conn).unwrap();
 }

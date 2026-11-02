@@ -5,6 +5,7 @@ pub mod accounts;
 pub mod api;
 pub mod auth;
 pub mod ballots;
+pub mod cache;
 pub mod config;
 pub mod db;
 pub mod error;
@@ -21,9 +22,34 @@ pub struct AppData {
     pub cfg: Arc<config::Config>,
     pub http: ntex::client::Client,
     pub nfl: nfl_stats::NflStats,
+    pub cache: cache::ResponseCache,
 }
 
 pub type St = web::AppState<AppData>;
+
+/// Use instead of ntex's `.json()`: that streams serde_json into a `BytesMut`
+/// through `io::Write`, which profiled at ~19% of `/api/quarterbacks`' CPU,
+/// while serializing into a `Vec` first raised its throughput ~25%.
+pub fn json<T: serde::Serialize + ?Sized>(
+    res: web::HttpResponseBuilder,
+    value: &T,
+) -> web::HttpResponse {
+    match serde_json::to_vec(value) {
+        Ok(body) => json_body(res, body),
+        Err(e) => {
+            eprintln!("serializing response: {e}");
+            web::HttpResponse::InternalServerError().into()
+        }
+    }
+}
+
+/// For a body that is already serialized JSON.
+pub fn json_body(
+    mut res: web::HttpResponseBuilder,
+    body: impl Into<ntex::http::body::Body>,
+) -> web::HttpResponse {
+    res.content_type("application/json").body(body)
+}
 
 pub fn routes(cfg: &mut web::ServiceConfig<St>) {
     api::routes(cfg);
@@ -44,6 +70,7 @@ pub async fn serve(cfg: Arc<config::Config>) -> io::Result<()> {
                 cfg: cfg.clone(),
                 http: ntex::client::Client::new(),
                 nfl: nfl.clone(),
+                cache: cache::ResponseCache::default(),
             }))
         },
         async |_| web::App::<St>::new().configure(routes),

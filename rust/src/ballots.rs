@@ -39,11 +39,32 @@ pub fn list_quarterbacks(
     limit: i64,
     offset: i64,
 ) -> Result<Vec<QuarterbackWithTeam>> {
+    check_page(limit, offset)?;
+    query_quarterbacks(conn, search, team_id, limit, offset)
+}
+
+pub fn check_page(limit: i64, offset: i64) -> Result<()> {
     if !(1..=MAX_QB_PAGE).contains(&limit) || offset < 0 {
         return Err(AppError::BadRequest(
             "limit must be 1-100 and offset nonnegative",
         ));
     }
+    Ok(())
+}
+
+/// Every quarterback in `list_quarterbacks` order.
+pub fn all_quarterbacks(conn: &Connection) -> Result<Vec<QuarterbackWithTeam>> {
+    // SQLite treats a negative LIMIT as no limit.
+    query_quarterbacks(conn, "", None, -1, 0)
+}
+
+fn query_quarterbacks(
+    conn: &Connection,
+    search: &str,
+    team_id: Option<i64>,
+    limit: i64,
+    offset: i64,
+) -> Result<Vec<QuarterbackWithTeam>> {
     Ok(conn
         .prepare_cached(&format!(
             "SELECT {QB_COLUMNS}
@@ -167,21 +188,20 @@ struct Score {
     votes: i64,
 }
 
-/// AP-style: #1 earns `BALLOT_SIZE` points down to 1 point for last.
+/// Reads totals maintained by the `week_scores` triggers (migration V4), which
+/// award AP-style points: #1 earns `BALLOT_SIZE` down to 1 point for last.
 fn top_scores(conn: &Connection, poll_week_id: i64) -> Result<Vec<Score>> {
     Ok(conn
         .prepare_cached(&format!(
-            "SELECT {QB_COLUMNS}, sum(?2 + 1 - v.rank) AS points, count(*) AS votes
-             FROM votes v
-             JOIN ballots b ON b.id = v.ballot_id
-             JOIN quarterbacks q ON q.id = v.quarterback_id
+            "SELECT {QB_COLUMNS}, s.points, s.votes
+             FROM week_scores s
+             JOIN quarterbacks q ON q.id = s.quarterback_id
              LEFT JOIN teams t ON t.id = q.team_id
-             WHERE b.poll_week_id = ?1
-             GROUP BY q.id
-             ORDER BY points DESC, votes DESC, q.name, q.id
-             LIMIT ?3"
+             WHERE s.poll_week_id = ?1
+             ORDER BY s.points DESC, s.votes DESC, q.name, q.id
+             LIMIT ?2"
         ))?
-        .query_map(params![poll_week_id, BALLOT_SIZE, RANKINGS_SIZE], |row| {
+        .query_map(params![poll_week_id, RANKINGS_SIZE], |row| {
             Ok(Score {
                 quarterback: qb_from_row(row)?,
                 points: row.get("points")?,
@@ -259,6 +279,43 @@ mod tests {
             .unwrap()
             .collect::<rusqlite::Result<_>>()
             .unwrap()
+    }
+
+    fn add_voters(conn: &Connection, n: i64) -> Vec<i64> {
+        (0..n)
+            .map(|i| {
+                conn.query_row(
+                    "INSERT INTO users (discord_id, username) VALUES (?1, ?2) RETURNING id",
+                    params![(100 + i).to_string(), format!("voter{i}")],
+                    |r| r.get(0),
+                )
+                .unwrap()
+            })
+            .collect()
+    }
+
+    /// Recomputes with `BALLOT_SIZE` from Rust so the triggers' hardcoded points
+    /// formula can't silently diverge from it.
+    fn assert_week_scores_in_sync(conn: &Connection) {
+        let rows = |sql: &str, p: &[&dyn rusqlite::ToSql]| -> Vec<(i64, i64, i64, i64)> {
+            conn.prepare(sql)
+                .unwrap()
+                .query_map(p, |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))
+                .unwrap()
+                .collect::<rusqlite::Result<_>>()
+                .unwrap()
+        };
+        let expected = rows(
+            "SELECT b.poll_week_id, v.quarterback_id, sum(?1 + 1 - v.rank), count(*)
+             FROM ballots b JOIN votes v ON v.ballot_id = b.id
+             GROUP BY 1, 2 ORDER BY 1, 2",
+            &[&BALLOT_SIZE],
+        );
+        let actual = rows(
+            "SELECT poll_week_id, quarterback_id, points, votes FROM week_scores ORDER BY 1, 2",
+            &[],
+        );
+        assert_eq!(actual, expected);
     }
 
     fn detail(r: Result<BallotOut>) -> &'static str {
@@ -429,5 +486,100 @@ mod tests {
         let earliest = rankings(&conn, 2025, 18).unwrap();
         assert_eq!(earliest.ballots, 0);
         assert!(earliest.rankings.is_empty());
+    }
+
+    #[test]
+    fn week_scores_track_every_write_path() {
+        let conn = setup();
+        let voters = add_voters(&conn, 4);
+        let ids = qb_ids(&conn, 20);
+        // Overlapping windows leave some QBs with only one or two votes, which
+        // is where the votes = 1 removal path in the delete trigger matters.
+        for (i, &voter) in voters.iter().enumerate() {
+            for week in [1, 3] {
+                submit_ballot(&conn, 2026, week, voter, &ids[i..i + 15]).unwrap();
+            }
+        }
+        submit_ballot(&conn, 2025, 18, voters[0], &ids[5..20]).unwrap();
+        assert_week_scores_in_sync(&conn);
+
+        let mut reordered = ids[2..17].to_vec();
+        reordered.reverse();
+        submit_ballot(&conn, 2026, 1, voters[1], &reordered).unwrap();
+        assert_week_scores_in_sync(&conn);
+
+        let deletes = [
+            "DELETE FROM votes WHERE ballot_id = (SELECT min(id) FROM ballots)",
+            // Cascades from ballots used to drop the ballot before its votes.
+            "DELETE FROM ballots WHERE id = (SELECT max(id) FROM ballots)",
+            "DELETE FROM ballots WHERE voter_id = ?1",
+            "DELETE FROM poll_weeks WHERE season = 2026 AND week = 3",
+        ];
+        for sql in deletes {
+            let n = if sql.contains("?1") {
+                conn.execute(sql, [voters[2]])
+            } else {
+                conn.execute(sql, [])
+            }
+            .unwrap();
+            assert!(n > 0, "{sql} deleted nothing");
+            assert_week_scores_in_sync(&conn);
+        }
+
+        conn.execute("DELETE FROM ballots", []).unwrap();
+        let left: i64 = conn
+            .query_row("SELECT count(*) FROM week_scores", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(left, 0);
+    }
+
+    #[test]
+    fn week_scores_backfill_existing_votes() {
+        let mut conn = db::test_conn_at(Some(3));
+        conn.execute_batch(
+            "INSERT INTO users (id, discord_id, username) VALUES (1, '1', 'a'), (2, '2', 'b');
+             INSERT INTO poll_weeks (id, season, week) VALUES (1, 2026, 1), (2, 2026, 2);
+             INSERT INTO ballots (id, poll_week_id, voter_id) VALUES (1, 1, 1), (2, 1, 2), (3, 2, 1);",
+        )
+        .unwrap();
+        let ids = qb_ids(&conn, 16);
+        for (ballot, window) in [(1, &ids[..15]), (2, &ids[1..16]), (3, &ids[..15])] {
+            for (rank, qb) in (1i64..).zip(window) {
+                conn.execute(
+                    "INSERT INTO votes (ballot_id, quarterback_id, rank) VALUES (?1, ?2, ?3)",
+                    params![ballot, qb, rank],
+                )
+                .unwrap();
+            }
+        }
+
+        db::migrate_test_conn(&mut conn);
+        assert_week_scores_in_sync(&conn);
+        let top = &rankings(&conn, 2026, 1).unwrap().rankings[0];
+        // ids[1] is #2 then #1: 14 + 15.
+        assert_eq!((top.quarterback.id, top.points, top.votes), (ids[1], 29, 2));
+    }
+
+    #[test]
+    fn week_scores_reject_untracked_updates() {
+        let conn = setup();
+        let ids = qb_ids(&conn, 15);
+        submit_ballot(&conn, 2026, 1, 1, &ids).unwrap();
+
+        for sql in [
+            "UPDATE votes SET rank = rank + 100",
+            "UPDATE votes SET quarterback_id = (SELECT max(id) FROM quarterbacks) WHERE rank = 1",
+            "UPDATE ballots SET poll_week_id = (SELECT id FROM poll_weeks WHERE season = 2026 AND week = 3)",
+        ] {
+            let err = conn.execute(sql, []).unwrap_err().to_string();
+            assert!(
+                err.contains("week_scores"),
+                "{sql} should be rejected: {err}"
+            );
+        }
+        // The upsert in submit_ballot rewrites voter_id; that must stay allowed.
+        conn.execute("UPDATE ballots SET voter_id = voter_id", [])
+            .unwrap();
+        assert_week_scores_in_sync(&conn);
     }
 }
