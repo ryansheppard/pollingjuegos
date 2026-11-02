@@ -43,8 +43,27 @@ pub fn migrate(path: String) -> anyhow::Result<()> {
 
 #[cfg(test)]
 pub fn test_conn() -> Connection {
+    let mut conn = test_conn_at(None);
+    migrate_test_conn(&mut conn);
+    conn
+}
+
+/// For testing a migration against rows written under an older schema:
+/// `version` stops after that migration, `None` applies none.
+#[cfg(test)]
+pub fn test_conn_at(version: Option<u32>) -> Connection {
     let mut conn = Connection::open_in_memory().unwrap();
     configure(&conn).unwrap();
-    embedded::migrations::runner().run(&mut conn).unwrap();
+    if let Some(v) = version {
+        embedded::migrations::runner()
+            .set_target(refinery::Target::Version(v.try_into().unwrap()))
+            .run(&mut conn)
+            .unwrap();
+    }
     conn
+}
+
+#[cfg(test)]
+pub fn migrate_test_conn(conn: &mut Connection) {
+    embedded::migrations::runner().run(conn).unwrap();
 }
