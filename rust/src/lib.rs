@@ -25,6 +25,22 @@ pub struct AppData {
 
 pub type St = web::AppState<AppData>;
 
+/// Use instead of ntex's `.json()`: that streams serde_json into a `BytesMut`
+/// through `io::Write`, which profiled at ~19% of `/api/quarterbacks`' CPU,
+/// while serializing into a `Vec` first raised its throughput ~25%.
+pub fn json<T: serde::Serialize + ?Sized>(
+    mut res: web::HttpResponseBuilder,
+    value: &T,
+) -> web::HttpResponse {
+    match serde_json::to_vec(value) {
+        Ok(body) => res.content_type("application/json").body(body),
+        Err(e) => {
+            eprintln!("serializing response: {e}");
+            web::HttpResponse::InternalServerError().into()
+        }
+    }
+}
+
 pub fn routes(cfg: &mut web::ServiceConfig<St>) {
     api::routes(cfg);
     accounts::routes(cfg);

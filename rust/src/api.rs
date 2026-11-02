@@ -47,7 +47,7 @@ async fn quarterbacks(
             quarterback,
         })
         .collect();
-    Ok(web::HttpResponse::Ok().json(&qbs))
+    Ok(crate::json(web::HttpResponse::Ok(), &qbs))
 }
 
 async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
@@ -69,7 +69,7 @@ async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
 
-    Ok(web::HttpResponse::Ok().json(&weeks))
+    Ok(crate::json(web::HttpResponse::Ok(), &weeks))
 }
 
 async fn my_ballot(
@@ -80,7 +80,7 @@ async fn my_ballot(
 ) -> Result<web::HttpResponse> {
     let (season, week) = path.into_inner();
     let ballot = ballots::get_ballot(&st.db.conn(), season, week, user.id)?;
-    Ok(web::HttpResponse::Ok().json(&ballot))
+    Ok(crate::json(web::HttpResponse::Ok(), &ballot))
 }
 
 async fn submit_ballot(
@@ -93,17 +93,17 @@ async fn submit_ballot(
     let (season, week) = path.into_inner();
     let ballot =
         ballots::submit_ballot(&st.db.conn(), season, week, user.id, &body.quarterback_ids)?;
-    Ok(web::HttpResponse::Ok().json(&ballot))
+    Ok(crate::json(web::HttpResponse::Ok(), &ballot))
 }
 
 async fn rankings(st: &St, (): (), path: Path<(i64, i64)>) -> Result<web::HttpResponse> {
     let (season, week) = path.into_inner();
     let rankings = ballots::rankings(&st.db.conn(), season, week)?;
-    Ok(web::HttpResponse::Ok().json(&rankings))
+    Ok(crate::json(web::HttpResponse::Ok(), &rankings))
 }
 
 async fn me(user: AuthUser) -> web::HttpResponse {
-    web::HttpResponse::Ok().json(&Me { id: user.id })
+    crate::json(web::HttpResponse::Ok(), &Me { id: user.id })
 }
 
 pub fn routes(cfg: &mut web::ServiceConfig<St>) {

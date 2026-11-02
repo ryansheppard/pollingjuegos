@@ -28,17 +28,22 @@ impl AppError {
                 eprintln!("{self}: {e:?}");
                 web::HttpResponse::InternalServerError().into()
             }
-            AppError::Unauthorized => {
-                web::HttpResponse::Unauthorized().json(&json!({ "detail": "Unauthorized" }))
-            }
-            AppError::CrossOrigin => web::HttpResponse::Forbidden()
-                .json(&json!({ "detail": "Cross-origin request rejected" })),
-            AppError::NotFound => {
-                web::HttpResponse::NotFound().json(&json!({ "detail": "Not Found" }))
-            }
-            AppError::BadRequest(detail) => {
-                web::HttpResponse::BadRequest().json(&json!({ "detail": detail }))
-            }
+            AppError::Unauthorized => crate::json(
+                web::HttpResponse::Unauthorized(),
+                &json!({ "detail": "Unauthorized" }),
+            ),
+            AppError::CrossOrigin => crate::json(
+                web::HttpResponse::Forbidden(),
+                &json!({ "detail": "Cross-origin request rejected" }),
+            ),
+            AppError::NotFound => crate::json(
+                web::HttpResponse::NotFound(),
+                &json!({ "detail": "Not Found" }),
+            ),
+            AppError::BadRequest(detail) => crate::json(
+                web::HttpResponse::BadRequest(),
+                &json!({ "detail": detail }),
+            ),
             AppError::NotApproved => {
                 web::HttpResponse::Forbidden().body("Discord account not approved.")
             }

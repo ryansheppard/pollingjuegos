@@ -153,6 +153,27 @@ async fn invalid_and_revoked_sessions_are_rejected() {
     );
 }
 
+/// Handlers build bodies with `crate::json` rather than ntex's `.json()`, so the
+/// header it used to set has to be checked here.
+#[ntex::test]
+async fn json_responses_declare_content_type() {
+    let h = Harness::new();
+    let ok = h.call(h.get("/api/weeks").to_request()).await;
+    let unauthorized = h
+        .call(test::TestRequest::get().uri("/api/me").to_request())
+        .await;
+    for (res, status) in [
+        (ok, StatusCode::OK),
+        (unauthorized, StatusCode::UNAUTHORIZED),
+    ] {
+        assert_eq!(res.status(), status);
+        assert_eq!(
+            res.headers().get(header::CONTENT_TYPE).unwrap(),
+            "application/json"
+        );
+    }
+}
+
 #[ntex::test]
 async fn me_returns_the_session_user() {
     let h = Harness::new();
