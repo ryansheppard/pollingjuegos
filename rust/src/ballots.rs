@@ -171,14 +171,20 @@ struct Score {
 fn top_scores(conn: &Connection, poll_week_id: i64) -> Result<Vec<Score>> {
     Ok(conn
         .prepare_cached(&format!(
-            "SELECT {QB_COLUMNS}, sum(?2 + 1 - v.rank) AS points, count(*) AS votes
-             FROM votes v
-             JOIN ballots b ON b.id = v.ballot_id
-             JOIN quarterbacks q ON q.id = v.quarterback_id
+            // Aggregating before the joins keeps quarterback/team text out of
+            // the GROUP BY, which ran once per vote rather than once per QB.
+            "WITH s AS (
+                 SELECT v.quarterback_id, sum(?2 + 1 - v.rank) AS points, count(*) AS votes
+                 FROM ballots b
+                 JOIN votes v ON v.ballot_id = b.id
+                 WHERE b.poll_week_id = ?1
+                 GROUP BY v.quarterback_id
+             )
+             SELECT {QB_COLUMNS}, s.points, s.votes
+             FROM s
+             JOIN quarterbacks q ON q.id = s.quarterback_id
              LEFT JOIN teams t ON t.id = q.team_id
-             WHERE b.poll_week_id = ?1
-             GROUP BY q.id
-             ORDER BY points DESC, votes DESC, q.name, q.id
+             ORDER BY s.points DESC, s.votes DESC, q.name, q.id
              LIMIT ?3"
         ))?
         .query_map(params![poll_week_id, BALLOT_SIZE, RANKINGS_SIZE], |row| {
