@@ -86,20 +86,11 @@ jobs:
       - name: Run deployment over Tailscale
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
-          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
           release="${GITHUB_SHA::12}"
-          ssh_dir=$(mktemp -d)
-          trap 'rm -rf "$ssh_dir"' EXIT
-          printf '%s\n' "$DEPLOY_SSH_KEY" > "$ssh_dir/key"
-          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > "$ssh_dir/known_hosts"
-          chmod 600 "$ssh_dir/key" "$ssh_dir/known_hosts"
-          ssh -i "$ssh_dir/key" -o BatchMode=yes \
-            -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$ssh_dir/known_hosts" \
-            "deploy@$DEPLOY_HOST" \
+          # tailscale ssh verifies the host key from the tailnet netmap, so no known_hosts secret is needed
+          tailscale ssh "deploy@$DEPLOY_HOST" \
             "sudo -n /usr/local/bin/pollingjuegos-deploy $release"
           echo "Deployed $release" >> "$GITHUB_STEP_SUMMARY"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
