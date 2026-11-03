@@ -1,1 +1,5 @@
 common --repo_env=DO_NOT_TRACK=1
+
+common --disk_cache=~/.bazel/disk_cache/pollingjuegoes
+common --experimental_disk_cache_gc_max_size=20G
+common --experimental_disk_cache_gc_max_age=14d
