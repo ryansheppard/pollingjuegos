@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use api_types::{Ballot, Quarterback, QuarterbackStats, Rankings, Week};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
+use serde::{Deserialize, Serialize};
 
 /// The server only flips `is_closed` when the list is fetched, so a deadline
 /// can pass while the app is open.
@@ -116,7 +117,7 @@ pub fn results_text(week: &Week, rankings: &Rankings) -> String {
 pub const BALLOT_SIZE: usize = 15;
 
 /// What the badge on each ballot row shows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Lens {
     Crowd,
     Qbr,

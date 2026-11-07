@@ -25,7 +25,6 @@ const BROWSER_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 #[derive(Debug, Clone)]
 pub struct Session {
     pub token: String,
-    #[expect(dead_code, reason = "will key saved ballot drafts")]
     pub user_id: i64,
 }
 
@@ -44,6 +43,10 @@ impl Client {
             .build()
             .into();
         Self { server, agent }
+    }
+
+    pub fn server(&self) -> &str {
+        &self.server
     }
 
     /// Keyed by server so a dev backend's token never gets sent to prod.

@@ -7,17 +7,22 @@ mod logic;
 mod pool;
 mod results;
 
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
 use api_types::{Ballot, Quarterback, QuarterbackStats, QuarterbackWithStats, Rankings, Week};
-use iced::widget::{button, column, container, row, text};
-use iced::{Alignment, Element, Length, Subscription, Task};
+use iced::event::{self, Event};
+use iced::keyboard::{self, Key, key::Named};
+use iced::widget::{button, center, column, container, opaque, row, stack, text};
+use iced::{Alignment, Color, Element, Length, Subscription, Task};
 use jiff::Timestamp;
 
-use self::logic::{BALLOT_SIZE, Lens};
+use self::logic::BALLOT_SIZE;
+pub use self::logic::Lens;
 use super::Action;
-use crate::session::Client;
+use crate::session::{Client, Session};
+use crate::store::{DraftKey, Store};
 use crate::task::{blocking, both};
 
 /// The deadline countdown only shows minutes.
@@ -27,6 +32,8 @@ const SEARCH_INPUT: &str = "pool-search";
 pub struct Poll {
     client: Arc<Client>,
     token: String,
+    user_id: i64,
+    store: Store,
     /// False until the week list and quarterbacks have loaded.
     ready: bool,
     /// Newest first, as the server sends them.
@@ -52,6 +59,14 @@ pub struct Poll {
     removed: Option<Removed>,
     /// A save or "copy last week" request is in flight.
     saving: bool,
+    /// A yes/no question shown over the page; edits wait until it's answered.
+    confirm: Option<Confirm>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Confirm {
+    ReplaceWithLastWeek,
+    Add(i64),
 }
 
 #[derive(Debug, Clone)]
@@ -106,12 +121,20 @@ pub enum Message {
         generation: u64,
         result: Fetched<Ballot>,
     },
+    ConfirmYes,
+    ConfirmNo,
+    /// `captured` means a widget (the search box) already handled the key.
+    Escape {
+        captured: bool,
+    },
     Tick,
     SignOut,
 }
 
 impl Poll {
-    pub fn new(client: Arc<Client>, token: String) -> (Self, Task<Message>) {
+    pub fn new(client: Arc<Client>, session: &Session) -> (Self, Task<Message>) {
+        let token = session.token.clone();
+        let store = Store::load();
         let load = {
             let (client, token) = (client.clone(), token.clone());
             blocking(
@@ -126,6 +149,9 @@ impl Poll {
         let poll = Self {
             client,
             token,
+            user_id: session.user_id,
+            lens: store.lens().unwrap_or(Lens::Epa),
+            store,
             ready: false,
             weeks: Vec::new(),
             catalog: Vec::new(),
@@ -139,9 +165,9 @@ impl Poll {
             now: Timestamp::now(),
             ballot: Vec::new(),
             search: String::new(),
-            lens: Lens::Epa,
             removed: None,
             saving: false,
+            confirm: None,
         };
         (poll, load)
     }
@@ -196,17 +222,23 @@ impl Poll {
                 self.search = search;
                 Task::none()
             }
-            Message::FocusSearch => iced::widget::operation::focus(SEARCH_INPUT),
+            Message::FocusSearch => {
+                if self.confirm.is_some() {
+                    return (Task::none(), Action::None);
+                }
+                self.tab = Tab::Ballot;
+                iced::widget::operation::focus(SEARCH_INPUT)
+            }
             Message::AddTopMatch => {
                 if !self.search.trim().is_empty()
                     && let Some(top) = self.available().first()
                 {
-                    self.add(top.quarterback.id);
+                    self.request_add(top.quarterback.id);
                 }
                 Task::none()
             }
             Message::Add(id) => {
-                self.add(id);
+                self.request_add(id);
                 Task::none()
             }
             Message::MoveUp(index) => {
@@ -224,6 +256,7 @@ impl Poll {
                     let quarterback = self.ballot.remove(index);
                     self.notice = None;
                     self.removed = Some(Removed { quarterback, index });
+                    self.persist_draft();
                 }
                 Task::none()
             }
@@ -233,11 +266,13 @@ impl Poll {
                 {
                     self.ballot
                         .insert(index.min(self.ballot.len()), quarterback);
+                    self.persist_draft();
                 }
                 Task::none()
             }
             Message::SetLens(lens) => {
                 self.lens = lens;
+                self.store.set_lens(lens);
                 Task::none()
             }
             Message::Save => self.save(),
@@ -267,13 +302,45 @@ impl Poll {
                 }
                 Task::none()
             }
-            Message::CopyPrevious => self.copy_previous(),
+            Message::CopyPrevious => {
+                if self.dirty() && self.can_edit() {
+                    self.confirm = Some(Confirm::ReplaceWithLastWeek);
+                    Task::none()
+                } else {
+                    self.copy_previous()
+                }
+            }
             Message::CopiedPrevious { generation, result } => {
                 if generation == self.generation {
                     self.saving = false;
                     self.copied_previous(result);
                 }
                 Task::none()
+            }
+            Message::ConfirmYes => match self.confirm.take() {
+                Some(Confirm::ReplaceWithLastWeek) => self.copy_previous(),
+                Some(Confirm::Add(id)) => {
+                    self.add(id);
+                    Task::none()
+                }
+                None => Task::none(),
+            },
+            Message::ConfirmNo => {
+                self.confirm = None;
+                Task::none()
+            }
+            Message::Escape { captured } => {
+                if self.confirm.take().is_some() || self.search.is_empty() {
+                    return (Task::none(), Action::None);
+                }
+                // Like the web app, the first Esc clears the search; the search
+                // box drops focus on Esc, so give it back.
+                self.search.clear();
+                if captured {
+                    iced::widget::operation::focus(SEARCH_INPUT)
+                } else {
+                    Task::none()
+                }
             }
             Message::Tick => {
                 self.now = Timestamp::now();
@@ -285,7 +352,31 @@ impl Poll {
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(TICK).map(|_| Message::Tick)
+        let keys = event::listen_with(|event, status, _window| {
+            let Event::Keyboard(keyboard::Event::KeyPressed {
+                modified_key,
+                modifiers,
+                ..
+            }) = event
+            else {
+                return None;
+            };
+            match modified_key.as_ref() {
+                Key::Named(Named::Escape) => Some(Message::Escape {
+                    captured: status == event::Status::Captured,
+                }),
+                // Only when nothing captured it, so typing "/" in a text box
+                // still types a slash.
+                Key::Character("/")
+                    if status == event::Status::Ignored
+                        && !(modifiers.control() || modifiers.alt() || modifiers.logo()) =>
+                {
+                    Some(Message::FocusSearch)
+                }
+                _ => None,
+            }
+        });
+        Subscription::batch([iced::time::every(TICK).map(|_| Message::Tick), keys])
     }
 
     pub fn view(&self) -> Element<'_, Message> {
@@ -317,10 +408,13 @@ impl Poll {
                 .align_y(Alignment::Center),
             );
         }
-        container(page.push(content))
+        let page = container(page.push(content))
             .padding(16)
-            .height(Length::Fill)
-            .into()
+            .height(Length::Fill);
+        match self.confirm {
+            Some(confirm) => stack![page, confirm_dialog(confirm)].into(),
+            None => page.into(),
+        }
     }
 
     fn load_week(&mut self, index: usize) -> Task<Message> {
@@ -363,6 +457,7 @@ impl Poll {
                     .map(|entry| entry.quarterback.clone())
                     .collect();
                 self.week = data;
+                self.restore_draft();
             }
             Err(error) => {
                 // Don't leave the previous week's picks under this week's header.
@@ -400,6 +495,18 @@ impl Poll {
         self.search.clear();
         self.notice = None;
         self.removed = None;
+        self.persist_draft();
+    }
+
+    fn request_add(&mut self, id: i64) {
+        let is_cam_ward = self.catalog.iter().any(|qb| {
+            qb.quarterback.id == id && qb.quarterback.name.trim().eq_ignore_ascii_case("cam ward")
+        });
+        if is_cam_ward && self.can_edit() {
+            self.confirm = Some(Confirm::Add(id));
+        } else {
+            self.add(id);
+        }
     }
 
     fn swap(&mut self, a: usize, b: usize) {
@@ -407,6 +514,7 @@ impl Poll {
             self.ballot.swap(a, b);
             self.notice = None;
             self.removed = None;
+            self.persist_draft();
         }
     }
 
@@ -441,6 +549,7 @@ impl Poll {
                 if let Some(data) = &mut self.week {
                     data.saved = saved;
                 }
+                self.persist_draft();
                 self.notice = Some("Ballot saved. Horrible picks.".to_owned());
                 self.refresh_rankings()
             }
@@ -501,6 +610,7 @@ impl Poll {
                     .map(|entry| entry.quarterback)
                     .collect();
                 self.removed = None;
+                self.persist_draft();
                 self.notice = Some(
                     "Copied last week’s picks. Review and save to submit this week.".to_owned(),
                 );
@@ -531,7 +641,71 @@ impl Poll {
     }
 
     fn can_edit(&self) -> bool {
-        self.week.is_some() && !self.closed() && !self.busy()
+        self.week.is_some() && !self.closed() && !self.busy() && self.confirm.is_none()
+    }
+
+    fn draft_key(&self) -> Option<DraftKey> {
+        let week = self.current_week()?;
+        Some(DraftKey::new(
+            self.client.server(),
+            self.user_id,
+            week.season,
+            week.week,
+        ))
+    }
+
+    /// Keeps unsaved edits on this device until they're saved, and drops the
+    /// draft once the ballot matches what the server has.
+    fn persist_draft(&mut self) {
+        if self.week.is_none() || self.closed() {
+            return;
+        }
+        let Some(key) = self.draft_key() else {
+            return;
+        };
+        let ids = self
+            .dirty()
+            .then(|| self.ballot.iter().map(|qb| qb.id).collect());
+        self.store.set_draft(&key, ids);
+    }
+
+    fn restore_draft(&mut self) {
+        if self.week.is_none() || self.closed() {
+            return;
+        }
+        let Some(key) = self.draft_key() else {
+            return;
+        };
+        let Some(ids) = self.store.draft(&key).map(<[i64]>::to_vec) else {
+            return;
+        };
+        match self.draft_quarterbacks(&ids) {
+            Some(ballot) => {
+                self.ballot = ballot;
+                if self.dirty() {
+                    self.notice =
+                        Some("Your unfinished draft was restored on this device.".to_owned());
+                }
+            }
+            None => self.store.set_draft(&key, None),
+        }
+    }
+
+    /// `None` if the stored draft can't be a valid ballot, e.g. a quarterback
+    /// was removed from the server since it was saved.
+    fn draft_quarterbacks(&self, ids: &[i64]) -> Option<Vec<Quarterback>> {
+        let unique: HashSet<_> = ids.iter().collect();
+        if ids.len() > BALLOT_SIZE || unique.len() != ids.len() {
+            return None;
+        }
+        ids.iter()
+            .map(|&id| {
+                self.catalog
+                    .iter()
+                    .find(|qb| qb.quarterback.id == id)
+                    .map(|qb| qb.quarterback.clone())
+            })
+            .collect()
     }
 
     fn can_undo(&self) -> bool {
@@ -589,4 +763,36 @@ impl Poll {
             })
             .collect()
     }
+}
+
+fn confirm_dialog<'a>(confirm: Confirm) -> Element<'a, Message> {
+    let (question, yes) = match confirm {
+        Confirm::ReplaceWithLastWeek => (
+            "Replace your unfinished changes with last week’s ballot?",
+            "Replace",
+        ),
+        Confirm::Add(_) => ("Are you sure?", "Yes"),
+    };
+    let dialog = container(
+        column![
+            text(question),
+            row![
+                button("Cancel")
+                    .style(button::secondary)
+                    .on_press(Message::ConfirmNo),
+                button(yes).on_press(Message::ConfirmYes),
+            ]
+            .spacing(8),
+        ]
+        .spacing(16)
+        .align_x(Alignment::End),
+    )
+    .padding(24)
+    .max_width(420)
+    .style(container::bordered_box);
+    // Dims the page and swallows clicks so nothing behind the dialog changes.
+    opaque(center(dialog).style(|_| container::Style {
+        background: Some(Color::from_rgba(0.0, 0.0, 0.0, 0.5).into()),
+        ..container::Style::default()
+    }))
 }

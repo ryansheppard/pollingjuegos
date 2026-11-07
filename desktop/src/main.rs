@@ -2,6 +2,7 @@ mod app;
 mod loopback;
 mod screen;
 mod session;
+mod store;
 mod task;
 
 use app::App;

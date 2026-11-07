@@ -51,7 +51,7 @@ impl App {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Restored(Ok(Some(session))) | Message::SignedIn(Ok(session)) => {
-                let (poll, load) = poll::Poll::new(self.client.clone(), session.token.clone());
+                let (poll, load) = poll::Poll::new(self.client.clone(), &session);
                 self.auth = Auth::SignedIn {
                     session,
                     poll: Box::new(poll),
