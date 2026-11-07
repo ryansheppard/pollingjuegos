@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+    # Tags release the desktop app only; publish/deploy stay gated on main.
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -104,3 +106,55 @@ jobs:
         with:
           webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
           content: "Deployed to the droplet successfully"
+
+  release:
+    name: Release desktop app
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+        with:
+          disk-cache: release
+          repository-cache: true
+          external-cache: true
+      - name: Build Linux and Windows binaries
+        run: |
+          set -euo pipefail
+          name="pollingjuegos-desktop-${GITHUB_REF_NAME}"
+          mkdir -p dist staging
+
+          # bazel-bin follows the last build's configuration, so copy each
+          # output out before building the next platform.
+          bazel build //desktop -c opt
+          cp bazel-bin/desktop/desktop staging/pollingjuegos
+          tar -C staging -czf "dist/${name}-linux-x86_64.tar.gz" pollingjuegos
+
+          bazel build //desktop -c opt --platforms=//:windows_x86_64
+          cp bazel-bin/desktop/desktop.exe staging/pollingjuegos.exe
+          (cd staging && zip -q "../dist/${name}-windows-x86_64.zip" pollingjuegos.exe)
+
+          (cd dist && sha256sum -- * > SHA256SUMS)
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
+      - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
+        if: ${{ failure() }}
+        with:
+          webhook-url: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          content: "Desktop release ${{ github.ref_name }} failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
