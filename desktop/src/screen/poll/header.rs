@@ -179,7 +179,7 @@ fn stat<'a>(label: &'a str, value: String, accent: bool) -> Element<'a, Message>
     let value_style: fn(&Theme) -> text::Style = if accent {
         style::accent_bright
     } else {
-        text::base
+        style::on_dark
     };
     column![
         text(label)
