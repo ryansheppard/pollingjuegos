@@ -8,6 +8,7 @@ use ntex::http::{Request, Response, StatusCode, header};
 use ntex::web::{self, test};
 use serde_json::{Value, json};
 
+use crate::accounts::pkce_challenge;
 use crate::auth::{self, SESSION_COOKIE};
 use crate::ballots;
 use crate::cache::ResponseCache;
@@ -89,6 +90,11 @@ impl Harness {
             .json(&json!({ "quarterback_ids": ids }))
     }
 
+    fn bearer(&self, req: test::TestRequest, token: &str) -> Request {
+        req.header(header::AUTHORIZATION, format!("Bearer {token}"))
+            .to_request()
+    }
+
     fn qb_ids(&self, n: i64) -> Vec<i64> {
         self.db
             .conn()
@@ -119,6 +125,14 @@ fn set_cookie<'a>(res: &'a Response, name: &str) -> Option<&'a str> {
         .get_all(header::SET_COOKIE)
         .filter_map(|v| v.to_str().ok())
         .find(|v| v.starts_with(&format!("{name}=")))
+}
+
+fn oauth_cookie_value(res: &Response) -> String {
+    set_cookie(res, "__Host-oauth")
+        .and_then(|c| c.split(';').next())
+        .and_then(|kv| kv.split_once('='))
+        .map(|(_, v)| v.to_owned())
+        .expect("oauth cookie")
 }
 
 #[ntex::test]
@@ -493,11 +507,7 @@ async fn callback_rejects_missing_or_mismatched_state() {
                 .to_request(),
         )
         .await;
-    let oauth_value = set_cookie(&login, "__Host-oauth")
-        .and_then(|c| c.split(';').next())
-        .and_then(|kv| kv.split_once('='))
-        .map(|(_, v)| v.to_owned())
-        .unwrap();
+    let oauth_value = oauth_cookie_value(&login);
     let res = h
         .call(
             test::TestRequest::get()
@@ -674,4 +684,165 @@ async fn cached_rankings_follow_writes_from_any_connection() {
     for suffix in ["", "-wal", "-shm"] {
         let _ = std::fs::remove_file(format!("{path_str}{suffix}"));
     }
+}
+
+const VERIFIER: &str = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+
+impl Harness {
+    fn login_code(&self) -> String {
+        auth::create_login_code(&self.db.conn(), self.user_id, &pkce_challenge(VERIFIER)).unwrap()
+    }
+
+    async fn exchange(&self, code: &str, verifier: &str) -> Response {
+        self.call(
+            test::TestRequest::post()
+                .uri("/accounts/desktop/token/")
+                .json(&json!({ "code": code, "code_verifier": verifier }))
+                .to_request(),
+        )
+        .await
+    }
+}
+
+#[ntex::test]
+async fn bearer_sessions_skip_the_origin_check() {
+    let h = Harness::new();
+    let ids = h.qb_ids(15);
+    let put = || {
+        test::TestRequest::put()
+            .uri("/api/weeks/2026/1/ballot")
+            .json(&json!({ "quarterback_ids": ids }))
+    };
+
+    let res = h.call(h.bearer(put(), &h.token)).await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let cross = put().header(header::ORIGIN, "https://evil.example");
+    assert_eq!(
+        h.call(h.bearer(cross, &h.token)).await.status(),
+        StatusCode::OK
+    );
+
+    // A bearer header that doesn't resolve must not fall back to the cookie.
+    let with_cookie = put().cookie(h.session());
+    assert_eq!(
+        h.call(h.bearer(with_cookie, "not-a-token")).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    h.db.conn()
+        .execute("UPDATE approved_discord_users SET enabled = 0", [])
+        .unwrap();
+    let me = test::TestRequest::get().uri("/api/me");
+    assert_eq!(
+        h.call(h.bearer(me, &h.token)).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+}
+
+#[ntex::test]
+async fn desktop_login_carries_loopback_port_and_challenge() {
+    let h = Harness::new();
+    let challenge = pkce_challenge(VERIFIER);
+    let res = h
+        .call(
+            test::TestRequest::get()
+                .uri(&format!(
+                    "/accounts/discord/login/?desktop_port=53123&desktop_challenge={challenge}"
+                ))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(res.status(), StatusCode::FOUND);
+    // Discord still redirects to the server; only the server knows about the app.
+    assert!(location(&res).contains(
+        "redirect_uri=https%3A%2F%2Fpj.example%2Faccounts%2Fdiscord%2Flogin%2Fcallback%2F"
+    ));
+
+    let cancelled = h
+        .call(
+            test::TestRequest::get()
+                .uri("/accounts/discord/login/callback/?error=access_denied")
+                .cookie(Cookie::new("__Host-oauth", oauth_cookie_value(&res)))
+                .to_request(),
+        )
+        .await;
+    assert_eq!(cancelled.status(), StatusCode::FOUND);
+    assert_eq!(
+        location(&cancelled),
+        "http://127.0.0.1:53123/callback?error=access_denied"
+    );
+
+    for query in [
+        "desktop_port=53123".to_owned(),
+        format!("desktop_challenge={challenge}"),
+        format!("desktop_port=0&desktop_challenge={challenge}"),
+        "desktop_port=53123&desktop_challenge=plain".to_owned(),
+    ] {
+        let res = h
+            .call(
+                test::TestRequest::get()
+                    .uri(&format!("/accounts/discord/login/?{query}"))
+                    .to_request(),
+            )
+            .await;
+        assert_eq!(res.status(), StatusCode::BAD_REQUEST, "{query}");
+    }
+}
+
+#[ntex::test]
+async fn desktop_code_exchanges_once_for_a_bearer_session() {
+    let h = Harness::new();
+    let code = h.login_code();
+
+    let res = h.exchange(&code, VERIFIER).await;
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = json_body(res).await;
+    assert_eq!(body["token_type"], "Bearer");
+    assert_eq!(body["expires_in"], auth::SESSION_TTL_SECS);
+    let token = body["access_token"].as_str().unwrap().to_owned();
+
+    let me = test::TestRequest::get().uri("/api/me");
+    let res = h.call(h.bearer(me, &token)).await;
+    assert_eq!(json_body(res).await, json!({ "id": h.user_id }));
+
+    let replay = h.exchange(&code, VERIFIER).await;
+    assert_eq!(replay.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json_body(replay).await,
+        json!({ "detail": "Invalid or expired login code." })
+    );
+}
+
+#[ntex::test]
+async fn desktop_code_is_burned_by_a_wrong_verifier() {
+    let h = Harness::new();
+    let code = h.login_code();
+    let wrong = h.exchange(&code, "wrong-verifier").await;
+    assert_eq!(wrong.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        h.exchange(&code, VERIFIER).await.status(),
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        h.exchange("not-a-code", VERIFIER).await.status(),
+        StatusCode::BAD_REQUEST
+    );
+}
+
+#[ntex::test]
+async fn desktop_logout_ends_the_bearer_session() {
+    let h = Harness::new();
+    let logout = || test::TestRequest::post().uri("/accounts/desktop/logout/");
+    assert_eq!(
+        h.call(logout().to_request()).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
+
+    let res = h.call(h.bearer(logout(), &h.token)).await;
+    assert_eq!(res.status(), StatusCode::NO_CONTENT);
+    let me = test::TestRequest::get().uri("/api/me");
+    assert_eq!(
+        h.call(h.bearer(me, &h.token)).await.status(),
+        StatusCode::UNAUTHORIZED
+    );
 }

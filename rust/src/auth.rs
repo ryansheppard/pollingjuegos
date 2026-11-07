@@ -1,5 +1,5 @@
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
-use ntex::http::{HttpMessage, Payload};
+use ntex::http::{HeaderMap, HttpMessage, Payload, header};
 use ntex::web::{FromRequest, HttpRequest};
 use rand::Rng;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -10,6 +10,8 @@ use crate::error::AppError;
 
 pub const SESSION_COOKIE: &str = "__Host-session";
 pub const SESSION_TTL_SECS: i64 = 14 * 24 * 60 * 60;
+/// Only has to outlive the browser's hop to the app's loopback listener.
+pub const LOGIN_CODE_TTL_SECS: i64 = 60;
 
 #[derive(Debug, Clone)]
 pub struct AuthUser {
@@ -36,11 +38,27 @@ impl<St> FromRequest<St> for AuthUser {
 pub fn session_user(db: &Db, req: &impl HttpMessage) -> rusqlite::Result<Option<AuthUser>> {
     let Some(token_hash) = req
         .cookie(SESSION_COOKIE)
-        .and_then(|c| hash_cookie(c.value()))
+        .and_then(|c| hash_token(c.value()))
     else {
         return Ok(None);
     };
     lookup_user(&db.conn(), &token_hash)
+}
+
+/// Bearer sessions are the same rows as cookie sessions; only the transport differs.
+pub fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+    headers
+        .get(header::AUTHORIZATION)?
+        .to_str()
+        .ok()?
+        .strip_prefix("Bearer ")
+}
+
+pub fn bearer_user(db: &Db, token: &str) -> rusqlite::Result<Option<AuthUser>> {
+    match hash_token(token) {
+        Some(token_hash) => lookup_user(&db.conn(), &token_hash),
+        None => Ok(None),
+    }
 }
 
 type TokenHash = [u8; 32];
@@ -51,7 +69,7 @@ pub fn new_token() -> (String, TokenHash) {
     (URL_SAFE_NO_PAD.encode(bytes), hash(&bytes))
 }
 
-pub fn hash_cookie(value: &str) -> Option<TokenHash> {
+pub fn hash_token(value: &str) -> Option<TokenHash> {
     let bytes: [u8; 32] = URL_SAFE_NO_PAD.decode(value).ok()?.try_into().ok()?;
     Some(hash(&bytes))
 }
@@ -104,6 +122,51 @@ pub fn delete_expired_sessions(conn: &Connection) -> rusqlite::Result<usize> {
     )
 }
 
+pub fn create_login_code(
+    conn: &Connection,
+    user_id: i64,
+    challenge: &str,
+) -> rusqlite::Result<String> {
+    let (code, code_hash) = new_token();
+    conn.execute(
+        "INSERT INTO desktop_login_codes (code_hash, user_id, challenge, expires_at)
+         VALUES (?1, ?2, ?3, strftime('%Y-%m-%dT%H:%M:%SZ', 'now', ?4))",
+        params![
+            code_hash,
+            user_id,
+            challenge,
+            format!("+{LOGIN_CODE_TTL_SECS} seconds")
+        ],
+    )?;
+    Ok(code)
+}
+
+/// Deletes the code even when it has expired or the caller's verifier turns out
+/// wrong, so each code gets exactly one redemption attempt.
+pub fn take_login_code(
+    conn: &Connection,
+    code_hash: &TokenHash,
+) -> rusqlite::Result<Option<(i64, String)>> {
+    let row: Option<(i64, String, bool)> = conn
+        .prepare_cached(
+            "DELETE FROM desktop_login_codes WHERE code_hash = ?1
+             RETURNING user_id, challenge,
+                 expires_at > strftime('%Y-%m-%dT%H:%M:%SZ', 'now') AS live",
+        )?
+        .query_row([code_hash], |row| {
+            Ok((row.get("user_id")?, row.get("challenge")?, row.get("live")?))
+        })
+        .optional()?;
+    Ok(row.and_then(|(user_id, challenge, live)| live.then_some((user_id, challenge))))
+}
+
+pub fn delete_expired_login_codes(conn: &Connection) -> rusqlite::Result<usize> {
+    conn.execute(
+        "DELETE FROM desktop_login_codes WHERE expires_at <= strftime('%Y-%m-%dT%H:%M:%SZ', 'now')",
+        [],
+    )
+}
+
 pub fn is_approved(conn: &Connection, discord_id: &str) -> rusqlite::Result<bool> {
     conn.prepare_cached(
         "SELECT EXISTS (SELECT 1 FROM approved_discord_users WHERE discord_id = ?1 AND enabled = 1)",
@@ -137,7 +200,7 @@ mod tests {
     }
 
     fn lookup(conn: &Connection, token: &str) -> Option<AuthUser> {
-        lookup_user(conn, &hash_cookie(token).unwrap()).unwrap()
+        lookup_user(conn, &hash_token(token).unwrap()).unwrap()
     }
 
     #[test]
@@ -147,7 +210,7 @@ mod tests {
         let user = lookup(&conn, &token).unwrap();
         assert_eq!((user.id, user.discord_id.as_str()), (user_id, "123"));
 
-        delete_session(&conn, &hash_cookie(&token).unwrap()).unwrap();
+        delete_session(&conn, &hash_token(&token).unwrap()).unwrap();
         assert!(lookup(&conn, &token).is_none());
     }
 
@@ -176,10 +239,46 @@ mod tests {
 
     #[test]
     fn malformed_cookies_are_rejected() {
-        assert!(hash_cookie("").is_none());
-        assert!(hash_cookie("not base64!").is_none());
-        assert!(hash_cookie(&URL_SAFE_NO_PAD.encode([0u8; 31])).is_none());
-        assert!(hash_cookie(&new_token().0).is_some());
+        assert!(hash_token("").is_none());
+        assert!(hash_token("not base64!").is_none());
+        assert!(hash_token(&URL_SAFE_NO_PAD.encode([0u8; 31])).is_none());
+        assert!(hash_token(&new_token().0).is_some());
+    }
+
+    #[test]
+    fn login_code_is_single_use() {
+        let (conn, user_id) = setup();
+        let code = create_login_code(&conn, user_id, "challenge").unwrap();
+        let code_hash = hash_token(&code).unwrap();
+        assert_eq!(
+            take_login_code(&conn, &code_hash).unwrap(),
+            Some((user_id, "challenge".to_owned()))
+        );
+        assert_eq!(take_login_code(&conn, &code_hash).unwrap(), None);
+    }
+
+    #[test]
+    fn expired_login_codes_are_rejected_and_purged() {
+        let (conn, user_id) = setup();
+        let expire_all = || {
+            conn.execute(
+                "UPDATE desktop_login_codes
+                 SET expires_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now', '-1 seconds')",
+                [],
+            )
+            .unwrap()
+        };
+
+        let code = create_login_code(&conn, user_id, "challenge").unwrap();
+        expire_all();
+        assert_eq!(
+            take_login_code(&conn, &hash_token(&code).unwrap()).unwrap(),
+            None
+        );
+
+        create_login_code(&conn, user_id, "challenge").unwrap();
+        expire_all();
+        assert_eq!(delete_expired_login_codes(&conn).unwrap(), 1);
     }
 
     #[test]

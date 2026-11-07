@@ -2,11 +2,11 @@ use ntex::http::{HeaderMap, Method, header};
 use ntex::service::{Ctx, Middleware, Service};
 use ntex::web::{WebRequest, WebResponse};
 
-use crate::auth::session_user;
+use crate::auth::{bearer_token, bearer_user, session_user};
 use crate::error::AppError;
 use crate::{AppData, St};
 
-/// Rejects cross-origin writes and requests without a valid session, and
+/// Rejects cross-origin cookie writes and requests without a valid session, and
 /// stores the `AuthUser` in request extensions for the extractor.
 pub struct RequireAuth;
 
@@ -42,11 +42,18 @@ where
         req: WebRequest<In>,
         ctx: Ctx<'_, Self, St>,
     ) -> Result<WebResponse, S::Error> {
-        if !is_safe(req.method()) && !same_origin(req.headers(), &self.app.cfg.public_origin) {
-            return Ok(req.into_response(AppError::CrossOrigin.to_response()));
-        }
-
-        let user = match session_user(&self.app.db, &req) {
+        // Browsers never attach an `Authorization` header on their own, so a
+        // bearer request can't be forged cross-site and needs no origin check.
+        let user = match bearer_token(req.headers()) {
+            Some(token) => bearer_user(&self.app.db, token),
+            None if !is_safe(req.method())
+                && !same_origin(req.headers(), &self.app.cfg.public_origin) =>
+            {
+                return Ok(req.into_response(AppError::CrossOrigin.to_response()));
+            }
+            None => session_user(&self.app.db, &req),
+        };
+        let user = match user {
             Ok(Some(user)) => user,
             Ok(None) => return Ok(req.into_response(AppError::Unauthorized.to_response())),
             Err(e) => return Ok(req.into_response(AppError::Db(e).to_response())),
