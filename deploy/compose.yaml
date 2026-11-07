@@ -4,7 +4,7 @@
 services:
   backend:
     image: >-
-      registry.digitalocean.com/pollingjuegos/backend:backend-${RELEASE:?required}
+      registry.digitalocean.com/pollingjuegos/backend:${RELEASE:?required}
     env_file: /etc/pollingjuegos.env
     environment:
       DB_PATH: /data/db.sqlite3
@@ -21,7 +21,7 @@ services:
 
   frontend:
     image: >-
-      registry.digitalocean.com/pollingjuegos/backend:frontend-${RELEASE:?required}
+      registry.digitalocean.com/pollingjuegos/frontend:${RELEASE:?required}
     depends_on:
       - backend
     ports:

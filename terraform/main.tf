@@ -133,10 +133,9 @@ resource "digitalocean_droplet" "pollingjuegos" {
   tags       = ["pollingjuegos"]
 }
 
-# DigitalOcean registry names are account-wide; the Starter tier is free but storage-limited.
 resource "digitalocean_container_registry" "pollingjuegos" {
   name                   = "pollingjuegos"
-  subscription_tier_slug = "starter"
+  subscription_tier_slug = "basic"
 }
 
 resource "digitalocean_firewall" "pollingjuegos" {
