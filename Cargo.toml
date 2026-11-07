@@ -1,3 +1,3 @@
 [workspace]
-members = ["rust"]
+members = ["desktop", "rust"]
 resolver = "3"
