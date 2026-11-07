@@ -3,9 +3,8 @@
 //! `bazel run //frontend:update_api_types`.
 
 use api_types::{
-    Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Disagreement,
-    Me, Quarterback, QuarterbackStats, QuarterbackWithStats, RankBand, RankingEntry, Rankings,
-    Team, Week,
+    Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Me, Quarterback,
+    QuarterbackStats, QuarterbackWithStats, RankBand, RankingEntry, Rankings, Team, Week,
 };
 use ts_rs::{Config, TS};
 
@@ -30,13 +29,14 @@ fn main() {
         export::<BallotRequest>(&cfg),
         export::<BallotEntry>(&cfg),
         export::<Ballot>(&cfg),
-        export::<Disagreement>(&cfg),
         export::<RankingEntry>(&cfg),
         export::<Rankings>(&cfg),
         export::<DesktopTokenRequest>(&cfg),
         export::<DesktopTokenResponse>(&cfg),
     ];
-    println!("// Generated from api-types by `bazel run //frontend:update_api_types`. Do not edit.");
+    println!(
+        "// Generated from api-types by `bazel run //frontend:update_api_types`. Do not edit."
+    );
     for decl in decls {
         println!("\n{decl}");
     }

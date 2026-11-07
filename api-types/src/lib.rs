@@ -94,18 +94,6 @@ pub struct Ballot {
     pub season: i64,
     pub week: i64,
     pub entries: Vec<BallotEntry>,
-    /// Up to three saved picks furthest from the crowd's top 10, biggest gap
-    /// first. Empty until the voter and the crowd both have ballots.
-    #[serde(default)]
-    pub disagreements: Vec<Disagreement>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-pub struct Disagreement {
-    pub quarterback: Quarterback,
-    pub mine: i64,
-    /// Null when the pick isn't in the crowd's top 10.
-    pub crowd: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

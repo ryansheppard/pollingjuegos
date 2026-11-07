@@ -1,6 +1,9 @@
 //! Pure helpers kept out of the view code so they can be tested.
 
-use api_types::{Quarterback, QuarterbackStats, RankBand, Rankings, Week};
+use std::cmp::Reverse;
+use std::collections::HashMap;
+
+use api_types::{Ballot, Quarterback, QuarterbackStats, RankBand, Rankings, Week};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
@@ -48,6 +51,36 @@ pub fn qb_label(qb: &Quarterback) -> String {
         Some(team) => format!("{} ({})", qb.name, team.abbreviation),
         None => qb.name.clone(),
     }
+}
+
+pub struct Disagreement<'a> {
+    pub quarterback: &'a Quarterback,
+    pub mine: i64,
+    /// `None` when the pick isn't in the crowd's top 10.
+    pub crowd: Option<i64>,
+}
+
+/// The saved picks that differ most from the crowd's ranking, biggest gap first.
+pub fn disagreements<'a>(saved: &'a Ballot, rankings: &Rankings) -> Vec<Disagreement<'a>> {
+    let crowd: HashMap<i64, i64> = rankings
+        .rankings
+        .iter()
+        .map(|row| (row.quarterback.id, row.rank))
+        .collect();
+    let mut rows: Vec<_> = saved
+        .entries
+        .iter()
+        .map(|entry| Disagreement {
+            quarterback: &entry.quarterback,
+            mine: entry.rank,
+            crowd: crowd.get(&entry.quarterback.id).copied(),
+        })
+        .filter(|row| row.crowd != Some(row.mine))
+        .collect();
+    // Picks outside the top 10 count as if ranked just below it.
+    rows.sort_by_key(|row| Reverse((row.mine - row.crowd.unwrap_or(11)).abs()));
+    rows.truncate(3);
+    rows
 }
 
 /// Plain-text stand-in for the web app's shareable results image.
@@ -226,6 +259,8 @@ pub fn save_hint(count: usize, dirty: bool, has_saved: bool) -> String {
 
 #[cfg(test)]
 mod tests {
+    use api_types::{BallotEntry, RankingEntry};
+
     use super::*;
 
     fn week(season: i64, week: i64, closes_at: Option<&str>, is_closed: bool) -> Week {
@@ -250,6 +285,52 @@ mod tests {
         assert_eq!(left("2026-11-07T12:00:59Z"), "0m");
         assert_eq!(left("2026-11-07T11:00:00Z"), "Closed");
         assert_eq!(time_left(&week(2026, 1, None, false), now), "Open");
+    }
+
+    fn qb(id: i64) -> Quarterback {
+        Quarterback {
+            id,
+            name: format!("QB {id}"),
+            team: None,
+        }
+    }
+
+    #[test]
+    fn disagreements_rank_biggest_gaps_first() {
+        let saved = Ballot {
+            season: 2026,
+            week: 1,
+            entries: (1..=15)
+                .map(|rank| BallotEntry {
+                    rank,
+                    quarterback: qb(rank),
+                })
+                .collect(),
+        };
+        // The crowd agrees on QB 1, swaps QBs 2 and 3, and puts QB 15 at #4.
+        let crowd = [(1, 1), (3, 2), (2, 3), (15, 4)];
+        let rankings = Rankings {
+            season: 2026,
+            week: 1,
+            ballots: 3,
+            rankings: crowd
+                .iter()
+                .map(|&(id, rank)| RankingEntry {
+                    rank,
+                    points: 0,
+                    votes: 0,
+                    previous_rank: None,
+                    quarterback: qb(id),
+                })
+                .collect(),
+        };
+        let got: Vec<_> = disagreements(&saved, &rankings)
+            .iter()
+            .map(|row| (row.quarterback.id, row.mine, row.crowd))
+            .collect();
+        // QB 15 is 11 off; unranked QBs 4 and 5 are 7 and 6 from the
+        // "just outside" #11.
+        assert_eq!(got, [(15, 15, Some(4)), (4, 4, None), (5, 5, None)]);
     }
 
     fn stats(qbr_rank: Option<(i64, RankBand)>, qualified: bool) -> QuarterbackStats {
@@ -287,7 +368,11 @@ mod tests {
             ("Unranked".to_owned(), Tone::Unranked)
         );
         assert_eq!(
-            badge_text(Lens::Qbr, None, Some(&stats(Some((9, RankBand::Mid)), true))),
+            badge_text(
+                Lens::Qbr,
+                None,
+                Some(&stats(Some((9, RankBand::Mid)), true))
+            ),
             ("QBR 61.3 #9".to_owned(), Tone::Mid)
         );
         assert_eq!(

@@ -46,18 +46,7 @@ quarterback_ids: Array<number>, };
 
 export type BallotEntry = { rank: number, quarterback: Quarterback, };
 
-export type Ballot = { season: number, week: number, entries: Array<BallotEntry>, 
-/**
- * Up to three saved picks furthest from the crowd's top 10, biggest gap
- * first. Empty until the voter and the crowd both have ballots.
- */
-disagreements: Array<Disagreement>, };
-
-export type Disagreement = { quarterback: Quarterback, mine: number, 
-/**
- * Null when the pick isn't in the crowd's top 10.
- */
-crowd: number | null, };
+export type Ballot = { season: number, week: number, entries: Array<BallotEntry>, };
 
 export type RankingEntry = { rank: number, points: number, votes: number, previous_rank: number | null, quarterback: Quarterback, };
 

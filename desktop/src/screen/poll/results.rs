@@ -2,7 +2,7 @@ use api_types::{RankingEntry, Rankings};
 use iced::widget::{button, column, container, progress_bar, row, scrollable, space, table, text};
 use iced::{Alignment, Element, Length, Theme, padding};
 
-use super::{Message, Poll};
+use super::{Message, Poll, logic};
 use crate::style;
 
 const SIDEBAR_WIDTH: f32 = 320.0;
@@ -158,9 +158,9 @@ fn movement(entry: &RankingEntry) -> Element<'_, Message> {
 
 fn sidebar(poll: &Poll) -> Element<'_, Message> {
     let versus = poll.week.as_ref().and_then(|data| {
-        let rows = &data.saved.disagreements;
-        (!rows.is_empty()).then(|| {
-            let rows = rows.iter().map(|row| {
+        let rows = logic::disagreements(&data.saved, &data.rankings);
+        (!rows.is_empty() && !data.rankings.rankings.is_empty()).then(|| {
+            let rows = rows.into_iter().map(|row| {
                 let crowd = row
                     .crowd
                     .map_or_else(|| "—".to_owned(), |rank| format!("#{rank}"));

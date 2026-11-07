@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { loadQuarterbacks, request, saveBallot, type Ballot, type Disagreement, type Quarterback, type QuarterbackWithStats, type Rankings, type Week } from './api'
-import { badge, isClosed, lenses, matchesSearch, statLine, timeLeft as formatTimeLeft, type Lens } from './logic'
+import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type QuarterbackWithStats, type Rankings, type Week } from './api'
+import { badge, disagreements as findDisagreements, isClosed, lenses, matchesSearch, statLine, timeLeft as formatTimeLeft, type Lens } from './logic'
 import SaveBar from './components/SaveBar.vue'
 
 const weeks = ref<Week[]>([])
@@ -129,7 +129,17 @@ function endDrag() {
   window.removeEventListener('pointercancel', endDrag)
 }
 const draftKey = computed(() => userId.value === null || !week.value ? null : `pollingjuegos-draft-${userId.value}-${week.value.season}-${week.value.week}`)
-const disagreements = ref<Disagreement[]>([])
+// Derived from the rankings on screen rather than fetched, so the sidebar can't disagree with the table beside it.
+const disagreements = computed(() => {
+  if (!savedIds.value.length || !rankings.value?.rankings.length) return []
+  const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
+  // Rank comes from ballot position, so a pick missing from the catalog keeps its slot's number.
+  const saved = savedIds.value.flatMap((id, index) => {
+    const quarterback = byId.get(id)
+    return quarterback ? [{ rank: index + 1, quarterback }] : []
+  })
+  return findDisagreements(saved, rankings.value)
+})
 function sameIds(a: number[], b: number[]) { return a.length === b.length && a.every((id, index) => id === b[index]) }
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const dirty = computed(() => !sameIds(ballot.value.map((qb) => qb.id), savedIds.value))
@@ -231,7 +241,6 @@ async function loadWeek() {
     tab.value = nextTab
     rankings.value = results
     savedIds.value = mine.entries.map((entry) => entry.quarterback.id)
-    disagreements.value = mine.disagreements
     let ids = savedIds.value
     const key = draftKey.value
     if (key && !closed.value) {
@@ -265,7 +274,6 @@ async function loadWeek() {
 function clearWeek() {
   rankings.value = null
   savedIds.value = []
-  disagreements.value = []
   ballot.value = []
 }
 
@@ -281,7 +289,6 @@ async function submit() {
     const result = await saveBallot(current, ballot.value.map((qb) => qb.id))
     ballot.value = result.entries.map((entry) => entry.quarterback)
     savedIds.value = ballot.value.map((qb) => qb.id)
-    disagreements.value = result.disagreements
     try { if (draftKey.value) draftStorage()?.removeItem(draftKey.value) } catch { /* Optional draft storage. */ }
     message.value = 'Ballot saved. Horrible picks.'
     try {

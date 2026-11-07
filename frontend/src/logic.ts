@@ -1,4 +1,4 @@
-import type { Quarterback, QuarterbackStats, RankBand, Week } from './api.gen'
+import type { BallotEntry, Quarterback, QuarterbackStats, RankBand, Rankings, Week } from './api.gen'
 
 export const BALLOT_SIZE = 15
 
@@ -65,6 +65,19 @@ export function badge(lens: Lens, crowdRank: number | undefined, stats: Quarterb
     tone: band ? bandTones[band] : stat.value === '—' ? 'unranked' : '',
     title: stats.qualified ? stat.title : `${stat.title} · too few dropbacks to rank`,
   }
+}
+
+export interface Disagreement { quarterback: Quarterback, mine: number, crowd: number | undefined }
+
+/** The saved picks that differ most from the crowd's ranking, biggest gap first. */
+export function disagreements(saved: BallotEntry[], rankings: Rankings): Disagreement[] {
+  const crowd = new Map(rankings.rankings.map((row) => [row.quarterback.id, row.rank]))
+  return saved
+    .map((entry) => ({ quarterback: entry.quarterback, mine: entry.rank, crowd: crowd.get(entry.quarterback.id) }))
+    .filter((row) => row.crowd !== row.mine)
+    // Picks outside the top 10 count as if ranked just below it.
+    .sort((a, b) => Math.abs(b.mine - (b.crowd ?? 11)) - Math.abs(a.mine - (a.crowd ?? 11)))
+    .slice(0, 3)
 }
 
 export function saveHint(count: number, dirty: boolean, hasSaved: boolean): string {

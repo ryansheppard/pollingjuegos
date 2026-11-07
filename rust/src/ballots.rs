@@ -1,9 +1,7 @@
-use std::cmp::Reverse;
-
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
 
 use crate::error::{AppError, Result};
-use api_types::{Ballot, BallotEntry, Disagreement, Quarterback, RankingEntry, Rankings, Team};
+use api_types::{Ballot, BallotEntry, Quarterback, RankingEntry, Rankings, Team};
 
 pub const BALLOT_SIZE: i64 = 15;
 const RANKINGS_SIZE: i64 = 10;
@@ -108,39 +106,11 @@ pub fn get_ballot(conn: &Connection, season: i64, week: i64, voter_id: i64) -> R
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    let disagreements = if entries.is_empty() {
-        Vec::new()
-    } else {
-        disagreements(&entries, &top_scores(conn, poll_week_id)?)
-    };
     Ok(Ballot {
         season,
         week,
         entries,
-        disagreements,
     })
-}
-
-fn disagreements(entries: &[BallotEntry], crowd: &[Score]) -> Vec<Disagreement> {
-    let crowd_rank = |qb_id: i64| {
-        (1i64..)
-            .zip(crowd)
-            .find(|(_, s)| s.quarterback.id == qb_id)
-            .map(|(rank, _)| rank)
-    };
-    let mut rows: Vec<_> = entries
-        .iter()
-        .map(|entry| Disagreement {
-            quarterback: entry.quarterback.clone(),
-            mine: entry.rank,
-            crowd: crowd_rank(entry.quarterback.id),
-        })
-        .filter(|row| row.crowd != Some(row.mine))
-        .collect();
-    // Picks outside the top 10 count as if ranked just below it.
-    rows.sort_by_key(|row| Reverse((row.mine - row.crowd.unwrap_or(RANKINGS_SIZE + 1)).abs()));
-    rows.truncate(3);
-    rows
 }
 
 /// Creates or replaces the voter's whole ballot; ranks come from list order.

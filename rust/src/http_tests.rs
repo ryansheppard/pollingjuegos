@@ -311,10 +311,7 @@ async fn ballot_round_trip_and_rankings() {
     let ids = h.qb_ids(15);
 
     let empty = json_body(h.call(h.get("/api/weeks/2026/1/ballot").to_request()).await).await;
-    assert_eq!(
-        empty,
-        json!({ "season": 2026, "week": 1, "entries": [], "disagreements": [] })
-    );
+    assert_eq!(empty, json!({ "season": 2026, "week": 1, "entries": [] }));
 
     let res = h
         .call(h.put_ballot("/api/weeks/2026/1/ballot", &ids).to_request())
@@ -325,22 +322,6 @@ async fn ballot_round_trip_and_rankings() {
     assert_eq!(saved["entries"][0]["rank"], 1);
     assert_eq!(saved["entries"][0]["quarterback"]["id"], ids[0]);
     assert!(saved["entries"][0]["quarterback"]["team"]["abbreviation"].is_string());
-    // As the only voter, the crowd's top 10 is this ballot's, so only picks
-    // 11-15 differ; #15 is furthest from the "just outside" rank of 11.
-    let gaps: Vec<_> = saved["disagreements"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|row| (row["quarterback"]["id"].clone(), row["mine"].clone(), row["crowd"].clone()))
-        .collect();
-    assert_eq!(
-        gaps,
-        [
-            (json!(ids[14]), json!(15), Value::Null),
-            (json!(ids[13]), json!(14), Value::Null),
-            (json!(ids[12]), json!(13), Value::Null),
-        ]
-    );
 
     let fetched = json_body(h.call(h.get("/api/weeks/2026/1/ballot").to_request()).await).await;
     assert_eq!(fetched, saved);
