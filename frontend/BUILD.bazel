@@ -1,5 +1,6 @@
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
+load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//frontend:vite/package_json.bzl", vite_bin = "bin")
 load("@npm//frontend:vue-tsc/package_json.bzl", vue_tsc_bin = "bin")
@@ -9,6 +10,11 @@ load("@rules_img//img:load.bzl", "image_load")
 load("@rules_img//img:push.bzl", "image_push")
 
 npm_link_all_packages(name = "node_modules")
+
+write_source_files(
+    name = "update_api_types",
+    files = {"src/api.gen.ts": "//api-types:api_gen_ts"},
+)
 
 _FRONTEND_INPUTS = glob(["src/**"]) + glob(
     ["public/**"],

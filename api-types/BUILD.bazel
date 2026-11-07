@@ -1,18 +1,40 @@
 load("@crates//:defs.bzl", "aliases", "all_crate_deps")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
 load("@rules_rust//rust:defs.bzl", "rust_clippy_test")
 
 rust_library(
     name = "api-types",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = ["src/bin/**"],
+    ),
     aliases = aliases(),
     crate_name = "api_types",
     visibility = ["//visibility:public"],
     deps = all_crate_deps(normal = True),
 )
 
+rust_binary(
+    name = "gen_ts",
+    srcs = ["src/bin/gen_ts.rs"],
+    aliases = aliases(),
+    deps = all_crate_deps(normal = True) + [":api-types"],
+)
+
+genrule(
+    name = "api_gen_ts",
+    outs = ["api.gen.ts"],
+    cmd = "$(execpath :gen_ts) > $@",
+    tools = [":gen_ts"],
+    visibility = ["//frontend:__pkg__"],
+)
+
 rust_clippy_test(
     name = "clippy_test",
     size = "small",
-    targets = [":api-types"],
+    targets = [
+        ":api-types",
+        ":gen_ts",
+    ],
 )
