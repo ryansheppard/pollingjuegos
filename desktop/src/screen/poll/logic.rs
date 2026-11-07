@@ -3,7 +3,7 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
-use api_types::{Ballot, Quarterback, Rankings, Week};
+use api_types::{Ballot, Quarterback, QuarterbackStats, Rankings, Week};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
@@ -113,6 +113,162 @@ pub fn results_text(week: &Week, rankings: &Rankings) -> String {
     out
 }
 
+pub const BALLOT_SIZE: usize = 15;
+
+/// What the badge on each ballot row shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Lens {
+    Crowd,
+    Qbr,
+    Epa,
+    Cpoe,
+}
+
+impl Lens {
+    pub const ALL: [Lens; 4] = [Lens::Crowd, Lens::Qbr, Lens::Epa, Lens::Cpoe];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Lens::Crowd => "Crowd",
+            Lens::Qbr => "QBR",
+            Lens::Epa => "EPA",
+            Lens::Cpoe => "CPOE",
+        }
+    }
+}
+
+/// League-rank bands for stat badges; the colors are explained by the legend
+/// under the ballot.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Tone {
+    Plain,
+    Unranked,
+    Top,
+    Mid,
+    Low,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct Badge {
+    pub text: String,
+    pub tone: Tone,
+}
+
+pub struct Stat {
+    pub lens: Lens,
+    pub value: String,
+}
+
+/// QBR, EPA per dropback and CPOE, formatted the way the web app shows them.
+pub fn stat_line(stats: &QuarterbackStats) -> [Stat; 3] {
+    let or_dash =
+        |value: Option<f64>, format: fn(f64) -> String| value.map_or("—".to_owned(), format);
+    [
+        Stat {
+            lens: Lens::Qbr,
+            value: or_dash(stats.qbr, |v| format!("{v:.1}")),
+        },
+        Stat {
+            lens: Lens::Epa,
+            value: or_dash(stats.epa_per_dropback, |v| signed(v, 2)),
+        },
+        Stat {
+            lens: Lens::Cpoe,
+            value: or_dash(stats.cpoe, |v| signed(v, 1)),
+        },
+    ]
+}
+
+fn signed(value: f64, digits: usize) -> String {
+    let sign = if value > 0.0 {
+        "+"
+    } else if value < 0.0 {
+        "−"
+    } else {
+        ""
+    };
+    format!("{sign}{:.digits$}", value.abs())
+}
+
+pub fn badge(lens: Lens, crowd_rank: Option<i64>, stats: Option<&QuarterbackStats>) -> Badge {
+    let label = lens.label();
+    if lens == Lens::Crowd {
+        return match crowd_rank {
+            Some(rank) => Badge {
+                text: format!("Crowd #{rank}"),
+                tone: Tone::Plain,
+            },
+            None => Badge {
+                text: "Unranked".to_owned(),
+                tone: Tone::Unranked,
+            },
+        };
+    }
+    let Some(stats) = stats else {
+        return Badge {
+            text: format!("{label} —"),
+            tone: Tone::Unranked,
+        };
+    };
+    let value = stat_line(stats)
+        .into_iter()
+        .find(|stat| stat.lens == lens)
+        .map_or_else(|| "—".to_owned(), |stat| stat.value);
+    let rank = match lens {
+        Lens::Qbr => stats.qbr_rank,
+        Lens::Epa => stats.epa_rank,
+        Lens::Cpoe => stats.cpoe_rank,
+        Lens::Crowd => unreachable!("handled above"),
+    };
+    let suffix = match rank {
+        Some(rank) => format!(" #{rank}"),
+        // Too few dropbacks to be ranked against the league.
+        None if !stats.qualified => " n/q".to_owned(),
+        None => String::new(),
+    };
+    let tone = match rank {
+        Some(..=8) => Tone::Top,
+        Some(..=20) => Tone::Mid,
+        Some(_) => Tone::Low,
+        None if value == "—" => Tone::Unranked,
+        None => Tone::Plain,
+    };
+    Badge {
+        text: format!("{label} {value}{suffix}"),
+        tone,
+    }
+}
+
+/// Every whitespace-separated term must appear in the name, team name or
+/// abbreviation, so "bills allen" and "BUF" both work.
+pub fn matches_search(qb: &Quarterback, search: &str) -> bool {
+    let haystack = match &qb.team {
+        Some(team) => format!("{} {} {}", qb.name, team.name, team.abbreviation),
+        None => qb.name.clone(),
+    }
+    .to_lowercase();
+    search
+        .to_lowercase()
+        .split_whitespace()
+        .all(|term| haystack.contains(term))
+}
+
+pub fn save_hint(count: usize, dirty: bool, has_saved: bool) -> String {
+    let remaining = BALLOT_SIZE.saturating_sub(count);
+    let unsaved = if dirty && has_saved {
+        "Unsaved changes. "
+    } else {
+        ""
+    };
+    match remaining {
+        0 if !dirty => "Ballot saved.".to_owned(),
+        0 if has_saved => "Unsaved changes. Save to update your ballot.".to_owned(),
+        0 => "Lineup complete. Ready to save.".to_owned(),
+        1 => format!("{unsaved}1 more pick to complete your ballot."),
+        n => format!("{unsaved}{n} more picks to complete your ballot."),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use api_types::{BallotEntry, RankingEntry};
@@ -202,5 +358,71 @@ mod tests {
         // QB 15 is 11 off; unranked QBs 4 and 5 are 7 and 6 from the
         // "just outside" #11.
         assert_eq!(got, [(15, 15, Some(4)), (4, 4, None), (5, 5, None)]);
+    }
+
+    fn stats(qbr_rank: Option<i64>, qualified: bool) -> QuarterbackStats {
+        QuarterbackStats {
+            season: 2026,
+            games: 8,
+            dropbacks: 300,
+            epa: Some(12.5),
+            epa_per_dropback: Some(-0.041),
+            cpoe: Some(0.0),
+            qbr: Some(61.27),
+            qualified,
+            qualified_count: 32,
+            qbr_rank,
+            epa_rank: None,
+            cpoe_rank: None,
+        }
+    }
+
+    #[test]
+    fn badges_follow_lens_and_rank_bands() {
+        let badge_text = |lens, crowd, stats: Option<&QuarterbackStats>| {
+            let b = badge(lens, crowd, stats);
+            (b.text, b.tone)
+        };
+        assert_eq!(
+            badge_text(Lens::Crowd, Some(3), None),
+            ("Crowd #3".to_owned(), Tone::Plain)
+        );
+        assert_eq!(
+            badge_text(Lens::Crowd, None, None),
+            ("Unranked".to_owned(), Tone::Unranked)
+        );
+        assert_eq!(
+            badge_text(Lens::Qbr, None, Some(&stats(Some(9), true))),
+            ("QBR 61.3 #9".to_owned(), Tone::Mid)
+        );
+        assert_eq!(
+            badge_text(Lens::Epa, None, Some(&stats(None, false))),
+            ("EPA −0.04 n/q".to_owned(), Tone::Plain)
+        );
+        assert_eq!(
+            badge_text(Lens::Cpoe, None, Some(&stats(None, true))),
+            ("CPOE 0.0".to_owned(), Tone::Plain)
+        );
+        assert_eq!(
+            badge_text(Lens::Qbr, None, None),
+            ("QBR —".to_owned(), Tone::Unranked)
+        );
+    }
+
+    #[test]
+    fn search_matches_every_term_across_name_and_team() {
+        let qb = Quarterback {
+            id: 1,
+            name: "Josh Allen".to_owned(),
+            team: Some(api_types::Team {
+                id: 1,
+                name: "Buffalo Bills".to_owned(),
+                abbreviation: "BUF".to_owned(),
+            }),
+        };
+        assert!(matches_search(&qb, "bills ALLEN"));
+        assert!(matches_search(&qb, "buf"));
+        assert!(matches_search(&qb, "  "));
+        assert!(!matches_search(&qb, "allen chiefs"));
     }
 }

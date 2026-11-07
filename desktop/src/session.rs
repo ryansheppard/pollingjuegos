@@ -5,7 +5,8 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
 use api_types::{
-    Ballot, DesktopTokenRequest, DesktopTokenResponse, Me, QuarterbackWithStats, Rankings, Week,
+    Ballot, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Me, QuarterbackWithStats,
+    Rankings, Week,
 };
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
@@ -143,8 +144,26 @@ impl Client {
         }
     }
 
-    /// `None` when the server no longer accepts the token; it's also dropped
-    /// from the keyring so the next launch doesn't retry it.
+    pub fn save_ballot(
+        &self,
+        token: &str,
+        season: i64,
+        week: i64,
+        quarterback_ids: Vec<i64>,
+    ) -> Result<Option<Ballot>> {
+        let path = format!("/weeks/{season}/{week}/ballot");
+        let res = self
+            .agent
+            .put(format!("{}/api{path}", self.server))
+            .config()
+            .http_status_as_error(false)
+            .build()
+            .header("Authorization", format!("Bearer {token}"))
+            .send_json(BallotRequest { quarterback_ids })
+            .with_context(|| format!("PUT /api{path}"))?;
+        self.accept(res)
+    }
+
     fn get<T: DeserializeOwned>(&self, token: &str, path: &str) -> Result<Option<T>> {
         let res = self
             .agent
@@ -155,6 +174,12 @@ impl Client {
             .header("Authorization", format!("Bearer {token}"))
             .call()
             .with_context(|| format!("GET /api{path}"))?;
+        self.accept(res)
+    }
+
+    /// `None` when the server no longer accepts the token; it's also dropped
+    /// from the keyring so the next launch doesn't retry it.
+    fn accept<T: DeserializeOwned>(&self, res: http::Response<ureq::Body>) -> Result<Option<T>> {
         let body = read_api(res)?;
         if body.is_none() {
             forget(&self.keyring_entry()?)?;

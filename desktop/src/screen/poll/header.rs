@@ -36,7 +36,7 @@ fn bar(poll: &Poll) -> Element<'_, Message> {
         })
         .collect();
     let selected = poll.selected.map(|index| choices[index].clone());
-    let busy = !poll.ready || poll.loading_week;
+    let busy = poll.busy();
     // Weeks are newest first, so "previous" is the next index.
     let step = |target: Option<usize>| {
         target
@@ -110,10 +110,7 @@ fn stat<'a>(label: &'a str, value: String) -> Element<'a, Message> {
 }
 
 fn tabs(poll: &Poll) -> Element<'_, Message> {
-    let picks = poll
-        .week
-        .as_ref()
-        .map_or(0, |data| data.saved.entries.len());
+    let picks = poll.ballot.len();
     let enabled = !poll.weeks.is_empty();
     let tab = |label: String, tab: Tab| {
         button(text(label))
