@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
-use iced::{Element, Subscription, Task};
+use iced::theme::Mode;
+use iced::{Element, Subscription, Task, Theme};
 
 use crate::screen::{Action, poll, sign_in};
 use crate::session::{Client, Session};
+use crate::style;
 use crate::task::blocking;
 
 const DEFAULT_SERVER: &str = "https://pj.ryansheppard.xyz";
@@ -16,6 +18,7 @@ pub enum Message {
     SignOut,
     SignedOut(Result<(), String>),
     Poll(poll::Message),
+    ThemeChanged(Mode),
 }
 
 enum Auth {
@@ -29,6 +32,7 @@ enum Auth {
 pub struct App {
     client: Arc<Client>,
     auth: Auth,
+    mode: Mode,
 }
 
 impl App {
@@ -43,8 +47,9 @@ impl App {
             Self {
                 client,
                 auth: Auth::SignedOut(sign_in::State::Restoring),
+                mode: Mode::None,
             },
-            restore,
+            Task::batch([restore, iced::system::theme().map(Message::ThemeChanged)]),
         )
     }
 
@@ -84,6 +89,10 @@ impl App {
                 self.sign_out_with(result.err());
                 Task::none()
             }
+            Message::ThemeChanged(mode) => {
+                self.mode = mode;
+                Task::none()
+            }
             Message::Poll(message) => {
                 // The user may have signed out while a request was in flight.
                 let Auth::SignedIn { poll, .. } = &mut self.auth else {
@@ -109,11 +118,19 @@ impl App {
         }
     }
 
+    pub fn theme(&self) -> Theme {
+        style::theme(self.mode)
+    }
+
     pub fn subscription(&self) -> Subscription<Message> {
-        match &self.auth {
+        let screen = match &self.auth {
             Auth::SignedOut(_) => Subscription::none(),
             Auth::SignedIn { poll, .. } => poll.subscription().map(Message::Poll),
-        }
+        };
+        Subscription::batch([
+            screen,
+            iced::system::theme_changes().map(Message::ThemeChanged),
+        ])
     }
 
     fn sign_out_with(&mut self, error: Option<String>) {
