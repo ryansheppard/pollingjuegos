@@ -8,3 +8,5 @@ build --bes_results_url=https://ryansheppard.buildbuddy.io/invocation/
 build --bes_backend=grpcs://ryansheppard.buildbuddy.io
 common --remote_cache=grpcs://ryansheppard.buildbuddy.io
 common --remote_timeout=10m
+common --remote_cache_compression
+common --experimental_remote_cache_chunking
