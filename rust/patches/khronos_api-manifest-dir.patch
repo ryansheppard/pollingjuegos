@@ -1,0 +1,17 @@
+--- a/build.rs
++++ b/build.rs
+@@ -50,8 +50,12 @@
+             // really is an extension.
+             let ext_path = path.join("extension.xml");
+             if ext_path.is_file() {
+-                // Include the XML file, making sure to use an absolute path.
+-                writeln!(file, "&*include_bytes!({:?}),", ext_path.to_str().unwrap()).unwrap();
++                writeln!(
++                    file,
++                    "&*include_bytes!(concat!(env!(\"CARGO_MANIFEST_DIR\"), \"/api_webgl/extensions/{}/extension.xml\")),",
++                    ext_name
++                )
++                .unwrap();
+             }
+         }
+     }

@@ -1,1 +1,4 @@
-exports_files(["libsqlite3-sys-manifest-dir.patch"])
+exports_files([
+    "khronos_api-manifest-dir.patch",
+    "libsqlite3-sys-manifest-dir.patch",
+])

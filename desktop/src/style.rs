@@ -480,6 +480,10 @@ pub fn accent_bright(theme: &Theme) -> text::Style {
     color_text(tokens(theme).accent_bright)
 }
 
+pub fn on_dark(theme: &Theme) -> text::Style {
+    color_text(tokens(theme).on_dark)
+}
+
 pub fn on_dark_muted(theme: &Theme) -> text::Style {
     color_text(tokens(theme).on_dark_muted)
 }
