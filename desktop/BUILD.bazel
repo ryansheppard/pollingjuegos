@@ -1,0 +1,30 @@
+load("@crates//:defs.bzl", "aliases", "all_crate_deps")
+load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
+load("@rules_rs//rs:rust_test.bzl", "rust_test")
+load("@rules_rust//rust:defs.bzl", "rust_clippy_test")
+
+rust_binary(
+    name = "desktop",
+    srcs = glob(["src/**/*.rs"]),
+    aliases = aliases(),
+    rustc_flags = select({
+        "//:opt": ["-Cstrip=symbols"],
+        "//conditions:default": [],
+    }),
+    deps = all_crate_deps(normal = True),
+)
+
+rust_test(
+    name = "test",
+    size = "small",
+    crate = ":desktop",
+)
+
+rust_clippy_test(
+    name = "clippy_test",
+    size = "small",
+    targets = [
+        ":desktop",
+        ":test",
+    ],
+)

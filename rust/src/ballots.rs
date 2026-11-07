@@ -1,9 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
 
 use crate::error::{AppError, Result};
-use crate::models::{
-    BallotEntry, BallotOut, QuarterbackWithTeam, RankingEntry, RankingsOut, TeamOut,
-};
+use api_types::{Ballot, BallotEntry, Quarterback, RankingEntry, Rankings, Team};
 
 pub const BALLOT_SIZE: i64 = 15;
 const RANKINGS_SIZE: i64 = 10;
@@ -13,13 +11,13 @@ const RANKINGS_SIZE: i64 = 10;
 const QB_COLUMNS: &str = "q.id AS qb_id, q.name AS qb_name,
     t.id AS team_id, t.name AS team_name, t.abbreviation AS team_abbreviation";
 
-fn qb_from_row(row: &Row) -> rusqlite::Result<QuarterbackWithTeam> {
+fn qb_from_row(row: &Row) -> rusqlite::Result<Quarterback> {
     let team_id: Option<i64> = row.get("team_id")?;
-    Ok(QuarterbackWithTeam {
+    Ok(Quarterback {
         id: row.get("qb_id")?,
         name: row.get("qb_name")?,
         team: match team_id {
-            Some(id) => Some(TeamOut {
+            Some(id) => Some(Team {
                 id,
                 name: row.get("team_name")?,
                 abbreviation: row.get("team_abbreviation")?,
@@ -38,7 +36,7 @@ pub fn list_quarterbacks(
     team_id: Option<i64>,
     limit: i64,
     offset: i64,
-) -> Result<Vec<QuarterbackWithTeam>> {
+) -> Result<Vec<Quarterback>> {
     check_page(limit, offset)?;
     query_quarterbacks(conn, search, team_id, limit, offset)
 }
@@ -53,7 +51,7 @@ pub fn check_page(limit: i64, offset: i64) -> Result<()> {
 }
 
 /// Every quarterback in `list_quarterbacks` order.
-pub fn all_quarterbacks(conn: &Connection) -> Result<Vec<QuarterbackWithTeam>> {
+pub fn all_quarterbacks(conn: &Connection) -> Result<Vec<Quarterback>> {
     // SQLite treats a negative LIMIT as no limit.
     query_quarterbacks(conn, "", None, -1, 0)
 }
@@ -64,7 +62,7 @@ fn query_quarterbacks(
     team_id: Option<i64>,
     limit: i64,
     offset: i64,
-) -> Result<Vec<QuarterbackWithTeam>> {
+) -> Result<Vec<Quarterback>> {
     Ok(conn
         .prepare_cached(&format!(
             "SELECT {QB_COLUMNS}
@@ -89,7 +87,7 @@ fn week_id(conn: &Connection, season: i64, week: i64) -> Result<i64> {
         .ok_or(AppError::NotFound)
 }
 
-pub fn get_ballot(conn: &Connection, season: i64, week: i64, voter_id: i64) -> Result<BallotOut> {
+pub fn get_ballot(conn: &Connection, season: i64, week: i64, voter_id: i64) -> Result<Ballot> {
     let poll_week_id = week_id(conn, season, week)?;
     let entries = conn
         .prepare_cached(&format!(
@@ -108,7 +106,7 @@ pub fn get_ballot(conn: &Connection, season: i64, week: i64, voter_id: i64) -> R
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
-    Ok(BallotOut {
+    Ok(Ballot {
         season,
         week,
         entries,
@@ -122,7 +120,7 @@ pub fn submit_ballot(
     week: i64,
     voter_id: i64,
     quarterback_ids: &[i64],
-) -> Result<BallotOut> {
+) -> Result<Ballot> {
     // IMMEDIATE takes the write lock up front: a deferred transaction that reads
     // then writes can hit SQLITE_BUSY without busy_timeout ever retrying it.
     let tx = Transaction::new_unchecked(conn, TransactionBehavior::Immediate)?;
@@ -183,7 +181,7 @@ pub fn submit_ballot(
 }
 
 struct Score {
-    quarterback: QuarterbackWithTeam,
+    quarterback: Quarterback,
     points: i64,
     votes: i64,
 }
@@ -212,7 +210,7 @@ fn top_scores(conn: &Connection, poll_week_id: i64) -> Result<Vec<Score>> {
 }
 
 /// Movement compares with the closest earlier week that exists, not strictly week - 1.
-pub fn rankings(conn: &Connection, season: i64, week: i64) -> Result<RankingsOut> {
+pub fn rankings(conn: &Connection, season: i64, week: i64) -> Result<Rankings> {
     let poll_week_id = week_id(conn, season, week)?;
     let scores = top_scores(conn, poll_week_id)?;
 
@@ -240,7 +238,7 @@ pub fn rankings(conn: &Connection, season: i64, week: i64) -> Result<RankingsOut
         .prepare_cached("SELECT count(*) FROM ballots WHERE poll_week_id = ?1")?
         .query_row([poll_week_id], |row| row.get(0))?;
 
-    Ok(RankingsOut {
+    Ok(Rankings {
         season,
         week,
         ballots,
@@ -318,7 +316,7 @@ mod tests {
         assert_eq!(actual, expected);
     }
 
-    fn detail(r: Result<BallotOut>) -> &'static str {
+    fn detail(r: Result<Ballot>) -> &'static str {
         match r {
             Err(AppError::BadRequest(d)) => d,
             other => panic!(

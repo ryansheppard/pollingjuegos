@@ -1,0 +1,20 @@
+[package]
+name = "desktop"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+api-types = { path = "../api-types" }
+base64 = "0.23.1"
+directories = "6.0.0"
+iced = { version = "0.14.0", features = ["smol"] }
+jiff = "0.2.38"
+keyring = "4.2.0"
+rand = "0.10.3"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+serde_urlencoded = "0.7.1"
+sha2 = "0.11.1"
+ureq = { version = "3.5.1", features = ["json"] }
+webbrowser = "1.2.6"

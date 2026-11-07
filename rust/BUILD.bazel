@@ -26,15 +26,10 @@ rust_binary(
     aliases = aliases(),
     # rules_rust ignores --strip; keep symbols outside opt for readable backtraces.
     rustc_flags = select({
-        ":opt": ["-Cstrip=symbols"],
+        "//:opt": ["-Cstrip=symbols"],
         "//conditions:default": [],
     }),
     deps = [":lib"] + all_crate_deps(normal = True),
-)
-
-config_setting(
-    name = "opt",
-    values = {"compilation_mode": "opt"},
 )
 
 rust_test(
