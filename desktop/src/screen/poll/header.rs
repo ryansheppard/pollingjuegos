@@ -1,7 +1,9 @@
 use std::fmt;
 
-use iced::widget::{button, column, pick_list, row, space, text};
-use iced::{Alignment, Element};
+use iced::widget::{button, column, container, pick_list, row, rule, space, text};
+use iced::{Alignment, Element, Length, Theme, padding};
+
+use crate::style;
 
 use super::{Message, Poll, Tab, logic};
 
@@ -19,10 +21,21 @@ impl fmt::Display for WeekChoice {
     }
 }
 
+const GUTTER: f32 = 24.0;
+
 pub fn view(poll: &Poll) -> Element<'_, Message> {
-    column![bar(poll), banner(poll), tabs(poll)]
-        .spacing(16)
-        .into()
+    column![
+        container(bar(poll))
+            .padding([10.0, GUTTER])
+            .width(Length::Fill)
+            .style(style::site_header),
+        rule::horizontal(1).style(style::band_divider),
+        container(column![banner(poll), tabs(poll)].spacing(24))
+            .padding(padding::top(28).left(GUTTER).right(GUTTER))
+            .width(Length::Fill)
+            .style(style::band),
+    ]
+    .into()
 }
 
 fn bar(poll: &Poll) -> Element<'_, Message> {
@@ -45,27 +58,69 @@ fn bar(poll: &Poll) -> Element<'_, Message> {
     };
     let previous = step(poll.selected.map(|index| index + 1));
     let next = step(poll.selected.and_then(|index| index.checked_sub(1)));
+    let step_button = |glyph, message| {
+        button(
+            text(glyph)
+                .size(12)
+                .center()
+                .width(Length::Fill)
+                .height(Length::Fill),
+        )
+        .width(44)
+        .height(40)
+        .style(style::header_step)
+        .on_press_maybe(message)
+    };
 
-    let stepper = row![
-        button("◀").on_press_maybe(previous),
-        pick_list(choices, selected, |choice: WeekChoice| {
-            Message::SelectWeek(choice.index)
-        })
-        .placeholder("No weeks"),
-        button("▶").on_press_maybe(next),
-    ]
-    .spacing(4)
-    .align_y(Alignment::Center);
+    let stepper = container(
+        row![
+            step_button("◀", previous),
+            pick_list(choices, selected, |choice: WeekChoice| {
+                Message::SelectWeek(choice.index)
+            })
+            .placeholder("No weeks")
+            .font(style::BOLD)
+            .text_size(14)
+            .padding([10, 10])
+            .style(style::header_pick_list)
+            .menu_style(style::menu),
+            step_button("▶", next),
+        ]
+        .spacing(2)
+        .align_y(Alignment::Center),
+    )
+    .padding(2)
+    .style(style::week_stepper);
 
     row![
-        text("PollingJuegos").size(22),
+        brand(),
         space::horizontal(),
         stepper,
         space::horizontal(),
-        button("Sign out")
-            .style(button::secondary)
+        button(text("Sign out").font(style::BOLD).size(13))
+            .padding([12, 8])
+            .style(style::header_link)
             .on_press(Message::SignOut),
     ]
+    .align_y(Alignment::Center)
+    .into()
+}
+
+fn brand<'a>() -> Element<'a, Message> {
+    let mark = container(text("PJ").font(style::DISPLAY).size(19))
+        .center(34)
+        .style(style::brand_mark);
+    row![
+        mark,
+        row![
+            text("POLLING").font(style::DISPLAY).size(26),
+            text("JUEGOS")
+                .font(style::DISPLAY)
+                .size(26)
+                .style(style::accent_bright),
+        ],
+    ]
+    .spacing(10)
     .align_y(Alignment::Center)
     .into()
 }
@@ -80,50 +135,91 @@ fn banner(poll: &Poll) -> Element<'_, Message> {
         _ => "—".to_owned(),
     };
 
+    let headline = |value| text(value).font(style::DISPLAY).size(54).line_height(1.0);
     let title = column![
-        text("The smoljuegos QB poll").size(13),
-        text("Who’s the GOAT?").size(34),
-    ];
-    let stats = row![
-        stat(
-            if closed {
-                "Voting closed"
-            } else {
-                "Voting closes"
-            },
-            closes
-        ),
-        stat("Time left", left),
-        stat("Ballots in", ballots),
+        text("THE SMOLJUEGOS QB POLL")
+            .font(style::BOLD)
+            .size(11.5)
+            .style(style::accent_bright),
+        row![
+            headline("WHO’S THE GOAT"),
+            headline("?").style(style::accent_bright)
+        ],
     ]
-    .spacing(32);
+    .spacing(8);
+
+    let divider = || rule::vertical(1).style(style::band_divider);
+    let stats = container(
+        row![
+            stat(
+                if closed {
+                    "VOTING CLOSED"
+                } else {
+                    "VOTING CLOSES"
+                },
+                closes,
+                false,
+            ),
+            divider(),
+            stat("TIME LEFT", left, true),
+            divider(),
+            stat("BALLOTS IN", ballots, false),
+        ]
+        // The dividers fill vertically, which would otherwise stretch the band to the window.
+        .height(Length::Shrink),
+    )
+    .style(style::stats);
 
     row![title, space::horizontal(), stats]
         .align_y(Alignment::End)
         .into()
 }
 
-fn stat<'a>(label: &'a str, value: String) -> Element<'a, Message> {
-    column![text(label).size(13), text(value).size(20)]
-        .spacing(2)
-        .into()
+fn stat<'a>(label: &'a str, value: String, accent: bool) -> Element<'a, Message> {
+    let value_style: fn(&Theme) -> text::Style = if accent {
+        style::accent_bright
+    } else {
+        text::base
+    };
+    column![
+        text(label)
+            .font(style::BOLD)
+            .size(11)
+            .style(style::on_dark_muted),
+        text(value)
+            .font(style::NUMBER)
+            .size(26)
+            .line_height(1.0)
+            .style(value_style),
+    ]
+    .spacing(6)
+    .padding([12, 20])
+    .into()
 }
 
 fn tabs(poll: &Poll) -> Element<'_, Message> {
     let picks = poll.ballot.len();
     let enabled = !poll.weeks.is_empty();
-    let tab = |label: String, tab: Tab| {
-        button(text(label))
-            .style(if poll.tab == tab {
-                button::primary
-            } else {
-                button::text
-            })
-            .on_press_maybe(enabled.then_some(Message::SelectTab(tab)))
+    let tab = |label: &'static str, chip: Option<String>, tab: Tab| {
+        let selected = poll.tab == tab;
+        let chip = chip.map(|chip| {
+            container(text(chip).font(style::BOLD).size(12))
+                .padding([3, 8])
+                .style(style::tab_chip(selected))
+        });
+        button(
+            row![text(label).font(style::BOLD).size(15)]
+                .push(chip)
+                .spacing(10)
+                .align_y(Alignment::Center),
+        )
+        .padding([14, 18])
+        .style(style::tab(selected))
+        .on_press_maybe(enabled.then_some(Message::SelectTab(tab)))
     };
     row![
-        tab(format!("Your ballot {picks}/15"), Tab::Ballot),
-        tab("Results · Top 10".to_owned(), Tab::Results),
+        tab("Your ballot", Some(format!("{picks}/15")), Tab::Ballot),
+        tab("Results · Top 10", None, Tab::Results),
     ]
     .spacing(4)
     .into()

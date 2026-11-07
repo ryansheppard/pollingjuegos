@@ -14,8 +14,8 @@ use std::time::Duration;
 use api_types::{Ballot, Quarterback, QuarterbackStats, QuarterbackWithStats, Rankings, Week};
 use iced::event::{self, Event};
 use iced::keyboard::{self, Key, key::Named};
-use iced::widget::{button, center, column, container, opaque, row, stack, text};
-use iced::{Alignment, Color, Element, Length, Subscription, Task};
+use iced::widget::{button, center, column, container, opaque, row, space, stack, text};
+use iced::{Alignment, Element, Length, Subscription, Task, Theme};
 use jiff::Timestamp;
 
 use self::logic::BALLOT_SIZE;
@@ -23,6 +23,7 @@ pub use self::logic::Lens;
 use super::Action;
 use crate::session::{Client, Session};
 use crate::store::{DraftKey, Store};
+use crate::style;
 use crate::task::{blocking, both};
 
 /// The deadline countdown only shows minutes.
@@ -381,36 +382,46 @@ impl Poll {
 
     pub fn view(&self) -> Element<'_, Message> {
         let content: Element<'_, Message> = if !self.ready {
-            text("Loading the field…").into()
+            text("Loading the field…").style(style::muted).into()
         } else if self.weeks.is_empty() {
-            text("No weeks have been created yet.").into()
+            text("No weeks have been created yet.")
+                .style(style::muted)
+                .into()
         } else {
             match self.tab {
                 Tab::Ballot => ballot::view(self),
                 Tab::Results => results::view(self),
             }
         };
-        let mut page = column![header::view(self)].spacing(16);
+        let mut main = column![].spacing(16);
         if let Some(error) = &self.error {
-            page = page.push(text(error).style(text::danger));
+            main = main.push(notice(text(error), style::notice_error));
         }
-        if let Some(notice) = &self.notice {
-            page = page.push(text(notice).style(text::success));
+        if let Some(message) = &self.notice {
+            main = main.push(notice(text(message), style::notice_success));
         }
         if let (Some(removed), Tab::Ballot) = (&self.removed, self.tab) {
             let undo = (self.can_undo() && !self.saving).then_some(Message::Undo);
-            page = page.push(
+            main = main.push(notice(
                 row![
                     text(format!("Removed {}.", removed.quarterback.name)),
-                    button("Undo").style(button::text).on_press_maybe(undo),
+                    space::horizontal(),
+                    button(text("Undo").font(style::BOLD).size(13))
+                        .padding([8, 14])
+                        .style(style::secondary)
+                        .on_press_maybe(undo),
                 ]
-                .spacing(8)
                 .align_y(Alignment::Center),
-            );
+                style::notice_undo,
+            ));
         }
-        let page = container(page.push(content))
-            .padding(16)
+        let main = container(main.push(content))
+            .padding([28, 24])
             .height(Length::Fill);
+        let page = container(column![header::view(self), main])
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .style(style::page);
         match self.confirm {
             Some(confirm) => stack![page, confirm_dialog(confirm)].into(),
             None => page.into(),
@@ -765,6 +776,17 @@ impl Poll {
     }
 }
 
+fn notice<'a>(
+    content: impl Into<Element<'a, Message>>,
+    style: fn(&Theme) -> container::Style,
+) -> Element<'a, Message> {
+    container(content)
+        .padding([14, 18])
+        .width(Length::Fill)
+        .style(style)
+        .into()
+}
+
 fn confirm_dialog<'a>(confirm: Confirm) -> Element<'a, Message> {
     let (question, yes) = match confirm {
         Confirm::ReplaceWithLastWeek => (
@@ -773,26 +795,27 @@ fn confirm_dialog<'a>(confirm: Confirm) -> Element<'a, Message> {
         ),
         Confirm::Add(_) => ("Are you sure?", "Yes"),
     };
+    let action = |label, style: fn(&Theme, button::Status) -> button::Style, message| {
+        button(text(label).font(style::BOLD).size(14))
+            .padding([12, 18])
+            .style(style)
+            .on_press(message)
+    };
     let dialog = container(
         column![
-            text(question),
+            text(question).font(style::SEMIBOLD).size(15),
             row![
-                button("Cancel")
-                    .style(button::secondary)
-                    .on_press(Message::ConfirmNo),
-                button(yes).on_press(Message::ConfirmYes),
+                action("Cancel", style::secondary, Message::ConfirmNo),
+                action(yes, style::primary, Message::ConfirmYes),
             ]
             .spacing(8),
         ]
-        .spacing(16)
+        .spacing(20)
         .align_x(Alignment::End),
     )
     .padding(24)
     .max_width(420)
-    .style(container::bordered_box);
+    .style(style::panel);
     // Dims the page and swallows clicks so nothing behind the dialog changes.
-    opaque(center(dialog).style(|_| container::Style {
-        background: Some(Color::from_rgba(0.0, 0.0, 0.0, 0.5).into()),
-        ..container::Style::default()
-    }))
+    opaque(center(dialog).style(style::scrim))
 }
