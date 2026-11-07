@@ -13,8 +13,8 @@ use crate::ballots;
 use crate::cache::{DbVersion, json_array};
 use crate::error::{AppError, Result};
 use crate::middleware::RequireAuth;
-use crate::models::{BallotIn, Me, QuarterbackWithStats, QuarterbackWithTeam, WeekOut};
 use crate::nfl_stats::NflStats;
+use api_types::{BallotRequest, Me, Quarterback, QuarterbackWithStats, Week};
 
 #[derive(Deserialize)]
 struct QuarterbackQuery {
@@ -43,7 +43,7 @@ async fn quarterbacks(
         offset,
     } = query.into_inner();
     let stats = st.nfl.snapshot();
-    let with_stats = |quarterback: QuarterbackWithTeam| QuarterbackWithStats {
+    let with_stats = |quarterback: Quarterback| QuarterbackWithStats {
         stats: NflStats::stats_for(&stats, &quarterback.name),
         quarterback,
     };
@@ -81,7 +81,7 @@ async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
     let weeks = stmt
         .query_map([], |row| {
             let closes_at: Option<Timestamp> = row.get("closes_at")?;
-            Ok(WeekOut {
+            Ok(Week {
                 id: row.get("id")?,
                 season: row.get("season")?,
                 week: row.get("week")?,
@@ -110,7 +110,7 @@ async fn submit_ballot(
     (): (),
     user: AuthUser,
     path: Path<(i64, i64)>,
-    body: Json<BallotIn>,
+    body: Json<BallotRequest>,
 ) -> Result<web::HttpResponse> {
     let (season, week) = path.into_inner();
     let ballot =

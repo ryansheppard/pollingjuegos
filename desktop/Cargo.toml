@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.104"
+api-types = { path = "../api-types" }
 base64 = "0.23.1"
 iced = "0.14.0"
 keyring = "4.2.0"

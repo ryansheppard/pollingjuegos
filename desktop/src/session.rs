@@ -4,9 +4,9 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
+use api_types::{DesktopTokenRequest, DesktopTokenResponse, Me, QuarterbackWithStats};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
-use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::loopback::{self, Callback};
@@ -22,21 +22,8 @@ pub struct Session {
     pub user_id: i64,
 }
 
-#[derive(Serialize)]
-struct TokenIn<'a> {
-    code: &'a str,
-    code_verifier: &'a str,
-}
-
-#[derive(Deserialize)]
-struct TokenOut {
-    access_token: String,
-}
-
-#[derive(Deserialize)]
-struct Me {
-    id: i64,
-}
+/// The server's maximum page size; a shorter page means we've reached the end.
+const QUARTERBACK_PAGE: usize = 100;
 
 pub struct Client {
     server: String,
@@ -92,13 +79,13 @@ impl Client {
         let token = self
             .agent
             .post(format!("{}/accounts/desktop/token/", self.server))
-            .send_json(TokenIn {
-                code: &code,
-                code_verifier: &verifier,
+            .send_json(DesktopTokenRequest {
+                code,
+                code_verifier: verifier,
             })
             .context("exchanging login code")?
             .body_mut()
-            .read_json::<TokenOut>()?
+            .read_json::<DesktopTokenResponse>()?
             .access_token;
 
         let user_id = self
@@ -132,6 +119,37 @@ impl Client {
             Ok(mut res) => Ok(Some(res.body_mut().read_json::<Me>()?.id)),
             Err(ureq::Error::StatusCode(401)) => Ok(None),
             Err(e) => Err(e).context("checking session"),
+        }
+    }
+
+    /// `None` when the server no longer accepts the token; it's also dropped
+    /// from the keyring so the next launch doesn't retry it.
+    pub fn quarterbacks(&self, token: &str) -> Result<Option<Vec<QuarterbackWithStats>>> {
+        let mut all = Vec::new();
+        loop {
+            let res = self
+                .agent
+                .get(format!("{}/api/quarterbacks", self.server))
+                .query("limit", QUARTERBACK_PAGE.to_string())
+                .query("offset", all.len().to_string())
+                .header("Authorization", format!("Bearer {token}"))
+                .call();
+            let page = match res {
+                Ok(mut res) => res
+                    .body_mut()
+                    .read_json::<Vec<QuarterbackWithStats>>()
+                    .context("reading quarterbacks")?,
+                Err(ureq::Error::StatusCode(401)) => {
+                    forget(&self.keyring_entry()?)?;
+                    return Ok(None);
+                }
+                Err(e) => return Err(e).context("loading quarterbacks"),
+            };
+            let done = page.len() < QUARTERBACK_PAGE;
+            all.extend(page);
+            if done {
+                return Ok(Some(all));
+            }
         }
     }
 }

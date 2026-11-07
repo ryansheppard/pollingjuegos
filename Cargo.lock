@@ -123,6 +123,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "330a5ed07fa54e4702c9d6c4174f74427fc0ef6e214bbd677ae50a5099946470"
 
 [[package]]
+name = "api-types"
+version = "0.1.0"
+dependencies = [
+ "jiff",
+ "serde",
+]
+
+[[package]]
 name = "apple-native-keyring-store"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -989,6 +997,7 @@ name = "desktop"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "api-types",
  "base64 0.23.1",
  "iced",
  "keyring",
@@ -3850,6 +3859,7 @@ name = "rust"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "api-types",
  "base64 0.23.1",
  "bytes",
  "cookie",

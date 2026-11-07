@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
+use api_types::QuarterbackStats;
 use bytes::Bytes;
 use jiff::{Timestamp, civil, tz::TimeZone};
 use ntex::http::header;
@@ -13,7 +14,6 @@ use ntex::time::{Millis, sleep};
 use parquet::file::reader::{FileReader, SerializedFileReader};
 use parquet::record::{Field, Row};
 use parquet::schema::types::Type;
-use serde::Serialize;
 
 const RELEASES: &str = "https://github.com/nflverse/nflverse-data/releases/download";
 const REFRESH: Duration = Duration::from_secs(60 * 60);
@@ -21,28 +21,11 @@ const REFRESH: Duration = Duration::from_secs(60 * 60);
 const RETRY: Duration = Duration::from_secs(5 * 60);
 // The season-to-date player file grows weekly and is already near ntex's 256 KiB default.
 const MAX_DOWNLOAD: usize = 16 * 1024 * 1024;
-// Keeps spot-duty backups off per-play leaderboards.
+// Keeps spot-duty backups off per-play leaderboards; `QuarterbackStats` ranks
+// only cover QBs with at least this many.
 const MIN_RANKED_DROPBACKS: i64 = 100;
 
-#[derive(Clone, Debug, PartialEq, Serialize)]
-pub struct QbStats {
-    pub season: i64,
-    pub games: i64,
-    pub dropbacks: i64,
-    pub epa: Option<f64>,
-    pub epa_per_dropback: Option<f64>,
-    pub cpoe: Option<f64>,
-    pub qbr: Option<f64>,
-    // Ranks only cover QBs with MIN_RANKED_DROPBACKS; null otherwise or when
-    // the stat itself is missing.
-    pub qualified: bool,
-    pub qualified_count: i64,
-    pub qbr_rank: Option<i64>,
-    pub epa_rank: Option<i64>,
-    pub cpoe_rank: Option<i64>,
-}
-
-pub type ByName = HashMap<String, QbStats>;
+pub type ByName = HashMap<String, QuarterbackStats>;
 
 /// Shared by every worker; readers clone the inner `Arc` so a refresh never
 /// blocks a request for longer than a pointer swap.
@@ -54,7 +37,7 @@ impl NflStats {
         self.0.read().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
-    pub fn stats_for(stats: &ByName, name: &str) -> Option<QbStats> {
+    pub fn stats_for(stats: &ByName, name: &str) -> Option<QuarterbackStats> {
         stats.get(&normalize_name(name)).cloned()
     }
 
@@ -317,7 +300,7 @@ fn build(season: i64, players: Vec<PlayerRow>, qbr: Vec<QbrRow>) -> ByName {
             .and_then(|&(weighted, plays)| (plays > 0.0).then(|| weighted / plays));
         result.insert(
             key,
-            QbStats {
+            QuarterbackStats {
                 season,
                 games: p.games.unwrap_or(0),
                 dropbacks,
@@ -342,7 +325,7 @@ fn build(season: i64, players: Vec<PlayerRow>, qbr: Vec<QbrRow>) -> ByName {
 }
 
 /// Rank qualified QBs per stat, higher is better; ties share the best rank.
-fn add_league_ranks(mut lines: Vec<&mut QbStats>) {
+fn add_league_ranks(mut lines: Vec<&mut QuarterbackStats>) {
     let qualified_count = lines
         .iter()
         .filter(|l| l.dropbacks >= MIN_RANKED_DROPBACKS)
@@ -357,9 +340,9 @@ fn add_league_ranks(mut lines: Vec<&mut QbStats>) {
 }
 
 fn rank_by(
-    lines: &mut [&mut QbStats],
-    get: impl Fn(&QbStats) -> Option<f64>,
-    rank: impl Fn(&mut QbStats) -> &mut Option<i64>,
+    lines: &mut [&mut QuarterbackStats],
+    get: impl Fn(&QuarterbackStats) -> Option<f64>,
+    rank: impl Fn(&mut QuarterbackStats) -> &mut Option<i64>,
 ) {
     let values: Vec<f64> = lines
         .iter()

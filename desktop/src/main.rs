@@ -4,9 +4,10 @@ mod session;
 use std::sync::Arc;
 
 use iced::futures::channel::oneshot;
-use iced::widget::{button, column, text};
+use iced::widget::{button, column, scrollable, text};
 use iced::{Element, Task};
 
+use api_types::QuarterbackWithStats;
 use session::{Client, Session};
 
 const DEFAULT_SERVER: &str = "https://pj.ryansheppard.xyz";
@@ -18,13 +19,25 @@ enum Message {
     SignedIn(Result<Session, String>),
     SignOut,
     SignedOut(Result<(), String>),
+    QuarterbacksLoaded(Result<Option<Vec<QuarterbackWithStats>>, String>),
+}
+
+enum Quarterbacks {
+    Loading,
+    Loaded(Vec<QuarterbackWithStats>),
+    Failed(String),
 }
 
 enum Auth {
     Restoring,
-    SignedOut { error: Option<String> },
+    SignedOut {
+        error: Option<String>,
+    },
     SigningIn,
-    SignedIn(Session),
+    SignedIn {
+        session: Session,
+        quarterbacks: Quarterbacks,
+    },
 }
 
 struct App {
@@ -76,7 +89,31 @@ impl App {
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Restored(Ok(Some(session))) | Message::SignedIn(Ok(session)) => {
-                self.auth = Auth::SignedIn(session);
+                let token = session.token.clone();
+                self.auth = Auth::SignedIn {
+                    session,
+                    quarterbacks: Quarterbacks::Loading,
+                };
+                let client = self.client.clone();
+                blocking(
+                    move || client.quarterbacks(&token),
+                    Message::QuarterbacksLoaded,
+                )
+            }
+            Message::QuarterbacksLoaded(result) => {
+                // The user may have signed out while the request was in flight.
+                let Auth::SignedIn { quarterbacks, .. } = &mut self.auth else {
+                    return Task::none();
+                };
+                match result {
+                    Ok(Some(list)) => *quarterbacks = Quarterbacks::Loaded(list),
+                    Ok(None) => {
+                        self.auth = Auth::SignedOut {
+                            error: Some("Your session expired. Sign in again.".to_owned()),
+                        };
+                    }
+                    Err(error) => *quarterbacks = Quarterbacks::Failed(error),
+                }
                 Task::none()
             }
             Message::Restored(Ok(None)) => {
@@ -93,7 +130,8 @@ impl App {
                 blocking(move || client.sign_in(), Message::SignedIn)
             }
             Message::SignOut => {
-                let Auth::SignedIn(session) = std::mem::replace(&mut self.auth, Auth::Restoring)
+                let Auth::SignedIn { session, .. } =
+                    std::mem::replace(&mut self.auth, Auth::Restoring)
                 else {
                     return Task::none();
                 };
@@ -119,12 +157,26 @@ impl App {
             .spacing(8)
             .into(),
             Auth::SigningIn => text("Finish signing in in your browser…").into(),
-            Auth::SignedIn(session) => column![
-                text(format!("Signed in as user #{}", session.user_id)),
-                button("Sign out").on_press(Message::SignOut),
-            ]
-            .spacing(8)
-            .into(),
+            Auth::SignedIn {
+                session,
+                quarterbacks,
+            } => {
+                let list: Element<'_, Message> = match quarterbacks {
+                    Quarterbacks::Loading => text("Loading quarterbacks…").into(),
+                    Quarterbacks::Failed(error) => text(error).into(),
+                    Quarterbacks::Loaded(list) => scrollable(
+                        column(list.iter().map(|qb| text(&qb.quarterback.name).into())).spacing(4),
+                    )
+                    .into(),
+                };
+                column![
+                    text(format!("Signed in as user #{}", session.user_id)),
+                    button("Sign out").on_press(Message::SignOut),
+                    list,
+                ]
+                .spacing(8)
+                .into()
+            }
         }
     }
 }

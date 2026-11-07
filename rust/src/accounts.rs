@@ -1,3 +1,4 @@
+use api_types::{DesktopTokenRequest, DesktopTokenResponse};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use cookie::{Cookie, SameSite, time::Duration};
 use ntex::http::{HttpMessage, header};
@@ -76,19 +77,6 @@ impl DesktopLogin {
         let query = serde_urlencoded::to_string(query).expect("string pairs encode");
         redirect(&format!("http://127.0.0.1:{}/callback?{query}", self.port))
     }
-}
-
-#[derive(Deserialize)]
-struct DesktopTokenIn {
-    code: String,
-    code_verifier: String,
-}
-
-#[derive(Serialize)]
-struct DesktopTokenOut {
-    access_token: String,
-    token_type: &'static str,
-    expires_in: i64,
 }
 
 #[derive(Deserialize)]
@@ -369,7 +357,7 @@ async fn logout(st: &St, (): (), req: HttpRequest) -> Result<HttpResponse> {
 
 /// No origin check: the response is only useful to whoever can read it, which
 /// cross-site pages can't, and the code is bound to the app's PKCE verifier.
-async fn desktop_token(st: &St, (): (), body: Json<DesktopTokenIn>) -> Result<HttpResponse> {
+async fn desktop_token(st: &St, (): (), body: Json<DesktopTokenRequest>) -> Result<HttpResponse> {
     let invalid = || AppError::BadRequest("Invalid or expired login code.");
     let code_hash = auth::hash_token(&body.code).ok_or_else(invalid)?;
     let conn = st.db.conn();
@@ -381,9 +369,9 @@ async fn desktop_token(st: &St, (): (), body: Json<DesktopTokenIn>) -> Result<Ht
     let token = auth::create_session(&conn, user_id)?;
     Ok(crate::json(
         HttpResponse::Ok(),
-        &DesktopTokenOut {
+        &DesktopTokenResponse {
             access_token: token,
-            token_type: "Bearer",
+            token_type: "Bearer".to_owned(),
             expires_in: SESSION_TTL_SECS,
         },
     ))

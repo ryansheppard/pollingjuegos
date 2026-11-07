@@ -3,6 +3,7 @@
 
 use std::sync::Arc;
 
+use api_types::QuarterbackStats;
 use cookie::Cookie;
 use ntex::http::{Request, Response, StatusCode, header};
 use ntex::web::{self, test};
@@ -14,7 +15,7 @@ use crate::ballots;
 use crate::cache::ResponseCache;
 use crate::config::Config;
 use crate::db::{self, Db};
-use crate::nfl_stats::{NflStats, QbStats, normalize_name};
+use crate::nfl_stats::{NflStats, normalize_name};
 use crate::{AppData, St};
 
 const ORIGIN: &str = "https://pj.example";
@@ -579,7 +580,7 @@ async fn cached_quarterback_pages_match_the_database() {
             let page = ballots::list_quarterbacks(&conn, "", None, limit, offset as i64).unwrap();
             serde_json::to_value(
                 page.into_iter()
-                    .map(|quarterback| crate::models::QuarterbackWithStats {
+                    .map(|quarterback| api_types::QuarterbackWithStats {
                         stats: None,
                         quarterback,
                     })
@@ -612,7 +613,7 @@ async fn cached_quarterbacks_follow_stats_refresh() {
     let name = first[0]["name"].as_str().unwrap().to_owned();
     assert_eq!(first[0]["stats"], Value::Null);
 
-    let stats = QbStats {
+    let stats = QuarterbackStats {
         season: 2026,
         games: 8,
         dropbacks: 300,
