@@ -4,10 +4,15 @@
 use std::time::Duration;
 
 use anyhow::{Context, Result, bail};
-use api_types::{DesktopTokenRequest, DesktopTokenResponse, Me, QuarterbackWithStats};
+use api_types::{
+    Ballot, DesktopTokenRequest, DesktopTokenResponse, Me, QuarterbackWithStats, Rankings, Week,
+};
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use rand::Rng;
+use serde::Deserialize;
+use serde::de::DeserializeOwned;
 use sha2::{Digest, Sha256};
+use ureq::http;
 
 use crate::loopback::{self, Callback};
 
@@ -19,6 +24,7 @@ const BROWSER_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 #[derive(Debug, Clone)]
 pub struct Session {
     pub token: String,
+    #[expect(dead_code, reason = "will key saved ballot drafts")]
     pub user_id: i64,
 }
 
@@ -52,13 +58,7 @@ impl Client {
             Err(keyring::Error::NoEntry) => return Ok(None),
             Err(e) => return Err(e).context("reading saved session"),
         };
-        match self.me(&token)? {
-            Some(user_id) => Ok(Some(Session { token, user_id })),
-            None => {
-                forget(&entry)?;
-                Ok(None)
-            }
-        }
+        Ok(self.me(&token)?.map(|user_id| Session { token, user_id }))
     }
 
     pub fn sign_in(&self) -> Result<Session> {
@@ -110,40 +110,30 @@ impl Client {
     }
 
     fn me(&self, token: &str) -> Result<Option<i64>> {
-        let res = self
-            .agent
-            .get(format!("{}/api/me", self.server))
-            .header("Authorization", format!("Bearer {token}"))
-            .call();
-        match res {
-            Ok(mut res) => Ok(Some(res.body_mut().read_json::<Me>()?.id)),
-            Err(ureq::Error::StatusCode(401)) => Ok(None),
-            Err(e) => Err(e).context("checking session"),
-        }
+        Ok(self.get::<Me>(token, "/me")?.map(|me| me.id))
     }
 
-    /// `None` when the server no longer accepts the token; it's also dropped
-    /// from the keyring so the next launch doesn't retry it.
+    pub fn weeks(&self, token: &str) -> Result<Option<Vec<Week>>> {
+        self.get(token, "/weeks")
+    }
+
+    pub fn ballot(&self, token: &str, season: i64, week: i64) -> Result<Option<Ballot>> {
+        self.get(token, &format!("/weeks/{season}/{week}/ballot"))
+    }
+
+    pub fn rankings(&self, token: &str, season: i64, week: i64) -> Result<Option<Rankings>> {
+        self.get(token, &format!("/weeks/{season}/{week}/rankings"))
+    }
+
     pub fn quarterbacks(&self, token: &str) -> Result<Option<Vec<QuarterbackWithStats>>> {
         let mut all = Vec::new();
         loop {
-            let res = self
-                .agent
-                .get(format!("{}/api/quarterbacks", self.server))
-                .query("limit", QUARTERBACK_PAGE.to_string())
-                .query("offset", all.len().to_string())
-                .header("Authorization", format!("Bearer {token}"))
-                .call();
-            let page = match res {
-                Ok(mut res) => res
-                    .body_mut()
-                    .read_json::<Vec<QuarterbackWithStats>>()
-                    .context("reading quarterbacks")?,
-                Err(ureq::Error::StatusCode(401)) => {
-                    forget(&self.keyring_entry()?)?;
-                    return Ok(None);
-                }
-                Err(e) => return Err(e).context("loading quarterbacks"),
+            let path = format!(
+                "/quarterbacks?limit={QUARTERBACK_PAGE}&offset={}",
+                all.len()
+            );
+            let Some(page) = self.get::<Vec<QuarterbackWithStats>>(token, &path)? else {
+                return Ok(None);
             };
             let done = page.len() < QUARTERBACK_PAGE;
             all.extend(page);
@@ -152,6 +142,47 @@ impl Client {
             }
         }
     }
+
+    /// `None` when the server no longer accepts the token; it's also dropped
+    /// from the keyring so the next launch doesn't retry it.
+    fn get<T: DeserializeOwned>(&self, token: &str, path: &str) -> Result<Option<T>> {
+        let res = self
+            .agent
+            .get(format!("{}/api{path}", self.server))
+            .config()
+            .http_status_as_error(false)
+            .build()
+            .header("Authorization", format!("Bearer {token}"))
+            .call()
+            .with_context(|| format!("GET /api{path}"))?;
+        let body = read_api(res)?;
+        if body.is_none() {
+            forget(&self.keyring_entry()?)?;
+        }
+        Ok(body)
+    }
+}
+
+/// The server puts a user-facing reason in error bodies, e.g. "Voting is
+/// closed for this week".
+#[derive(Deserialize)]
+struct ErrorBody {
+    detail: String,
+}
+
+fn read_api<T: DeserializeOwned>(mut res: http::Response<ureq::Body>) -> Result<Option<T>> {
+    let status = res.status();
+    if status == http::StatusCode::UNAUTHORIZED {
+        return Ok(None);
+    }
+    if !status.is_success() {
+        let detail = res.body_mut().read_json::<ErrorBody>().map(|b| b.detail);
+        bail!(detail.unwrap_or_else(|_| format!("Request failed ({status})")));
+    }
+    res.body_mut()
+        .read_json()
+        .map(Some)
+        .context("reading response")
 }
 
 fn forget(entry: &keyring::Entry) -> Result<()> {

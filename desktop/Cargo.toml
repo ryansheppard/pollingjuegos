@@ -7,7 +7,8 @@ edition = "2024"
 anyhow = "1.0.104"
 api-types = { path = "../api-types" }
 base64 = "0.23.1"
-iced = "0.14.0"
+iced = { version = "0.14.0", features = ["smol"] }
+jiff = "0.2.38"
 keyring = "4.2.0"
 rand = "0.10.3"
 serde = { version = "1.0.229", features = ["derive"] }

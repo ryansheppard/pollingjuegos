@@ -1,9 +1,8 @@
 use std::sync::Arc;
 
-use iced::widget::{button, column, text};
-use iced::{Element, Task};
+use iced::{Element, Subscription, Task};
 
-use crate::screen::{Action, quarterbacks, sign_in};
+use crate::screen::{Action, poll, sign_in};
 use crate::session::{Client, Session};
 use crate::task::blocking;
 
@@ -16,14 +15,14 @@ pub enum Message {
     SignedIn(Result<Session, String>),
     SignOut,
     SignedOut(Result<(), String>),
-    Quarterbacks(quarterbacks::Message),
+    Poll(poll::Message),
 }
 
 enum Auth {
     SignedOut(sign_in::State),
     SignedIn {
         session: Session,
-        quarterbacks: quarterbacks::State,
+        poll: Box<poll::Poll>,
     },
 }
 
@@ -52,13 +51,12 @@ impl App {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Restored(Ok(Some(session))) | Message::SignedIn(Ok(session)) => {
-                let (quarterbacks, load) =
-                    quarterbacks::State::load(self.client.clone(), session.token.clone());
+                let (poll, load) = poll::Poll::new(self.client.clone(), session.token.clone());
                 self.auth = Auth::SignedIn {
                     session,
-                    quarterbacks,
+                    poll: Box::new(poll),
                 };
-                load.map(Message::Quarterbacks)
+                load.map(Message::Poll)
             }
             Message::Restored(Ok(None)) => {
                 self.sign_out_with(None);
@@ -86,16 +84,20 @@ impl App {
                 self.sign_out_with(result.err());
                 Task::none()
             }
-            Message::Quarterbacks(message) => {
+            Message::Poll(message) => {
                 // The user may have signed out while a request was in flight.
-                let Auth::SignedIn { quarterbacks, .. } = &mut self.auth else {
+                let Auth::SignedIn { poll, .. } = &mut self.auth else {
                     return Task::none();
                 };
-                match quarterbacks.update(message) {
-                    Action::None => {}
-                    Action::SessionExpired => self.session_expired(),
+                let (task, action) = poll.update(message);
+                match action {
+                    Action::None => task.map(Message::Poll),
+                    Action::SessionExpired => {
+                        self.session_expired();
+                        Task::none()
+                    }
+                    Action::SignOut => self.update(Message::SignOut),
                 }
-                Task::none()
             }
         }
     }
@@ -103,16 +105,14 @@ impl App {
     pub fn view(&self) -> Element<'_, Message> {
         match &self.auth {
             Auth::SignedOut(state) => state.view().map(Message::SignIn),
-            Auth::SignedIn {
-                session,
-                quarterbacks,
-            } => column![
-                text(format!("Signed in as user #{}", session.user_id)),
-                button("Sign out").on_press(Message::SignOut),
-                quarterbacks.view().map(Message::Quarterbacks),
-            ]
-            .spacing(8)
-            .into(),
+            Auth::SignedIn { poll, .. } => poll.view().map(Message::Poll),
+        }
+    }
+
+    pub fn subscription(&self) -> Subscription<Message> {
+        match &self.auth {
+            Auth::SignedOut(_) => Subscription::none(),
+            Auth::SignedIn { poll, .. } => poll.subscription().map(Message::Poll),
         }
     }
 

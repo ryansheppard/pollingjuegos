@@ -24,3 +24,16 @@ where
         to_message,
     )
 }
+
+/// Runs both closures at once on the current worker thread plus one more, for
+/// requests that don't depend on each other.
+pub fn both<A: Send, B>(a: impl FnOnce() -> A + Send, b: impl FnOnce() -> B) -> (A, B) {
+    std::thread::scope(|s| {
+        let a = s.spawn(a);
+        let b = b();
+        let a = a
+            .join()
+            .unwrap_or_else(|panic| std::panic::resume_unwind(panic));
+        (a, b)
+    })
+}
