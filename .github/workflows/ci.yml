@@ -25,6 +25,9 @@ jobs:
           repository-cache: true
           external-cache: true
           cache-save: ${{ github.event_name == 'push' }}
+          bazelrc: |
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            common --bes_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - run: hk check --all
       - run: bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
@@ -52,6 +55,9 @@ jobs:
           disk-cache: publish
           repository-cache: true
           external-cache: true
+          bazelrc: |
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            common --bes_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f  # v2.5.2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
@@ -127,6 +133,9 @@ jobs:
           disk-cache: release
           repository-cache: true
           external-cache: true
+          bazelrc: |
+            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+            common --bes_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - name: Build Linux and Windows binaries
         run: |
           set -euo pipefail
