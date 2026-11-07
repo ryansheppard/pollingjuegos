@@ -78,7 +78,7 @@ async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
         "SELECT id, season, week, closes_at FROM poll_weeks ORDER BY season DESC, week DESC",
     )?;
     let now = Timestamp::now();
-    let weeks = stmt
+    let mut weeks = stmt
         .query_map([], |row| {
             let closes_at: Option<Timestamp> = row.get("closes_at")?;
             Ok(Week {
@@ -87,11 +87,24 @@ async fn weeks(st: &St, (): ()) -> Result<web::HttpResponse> {
                 week: row.get("week")?,
                 closes_at,
                 is_closed: closes_at.is_some_and(|t| now >= t),
+                is_default: false,
             })
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    if let Some(index) = default_week(&weeks) {
+        weeks[index].is_default = true;
+    }
 
     Ok(crate::json(web::HttpResponse::Ok(), &weeks))
+}
+
+/// Weeks are newest first, so the oldest open week is the last open one and
+/// the newest overall is the first.
+fn default_week(weeks: &[Week]) -> Option<usize> {
+    weeks
+        .iter()
+        .rposition(|w| !w.is_closed)
+        .or_else(|| (!weeks.is_empty()).then_some(0))
 }
 
 async fn my_ballot(
@@ -150,4 +163,26 @@ pub fn routes(cfg: &mut web::ServiceConfig<St>) {
             )
             .service(web::resource("/me").to(me)),
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn week(week: i64, is_closed: bool) -> Week {
+        Week {
+            id: week,
+            season: 2026,
+            week,
+            closes_at: None,
+            is_closed,
+            is_default: false,
+        }
+    }
+
+    #[test]
+    fn default_week_falls_back_to_newest_when_all_closed() {
+        assert_eq!(default_week(&[week(3, true), week(2, true)]), Some(0));
+        assert_eq!(default_week(&[]), None);
+    }
 }

@@ -3,7 +3,7 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
-use api_types::{Ballot, Quarterback, QuarterbackStats, Rankings, Week};
+use api_types::{Ballot, Quarterback, QuarterbackStats, RankBand, Rankings, Week};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
@@ -12,19 +12,6 @@ use serde::{Deserialize, Serialize};
 /// can pass while the app is open.
 pub fn is_closed(week: &Week, now: Timestamp) -> bool {
     week.is_closed || week.closes_at.is_some_and(|closes| now >= closes)
-}
-
-/// Defaults to the oldest week still taking votes, or the most recent one if
-/// every week is closed. Returns an index into `weeks`.
-pub fn initial_week(weeks: &[Week], now: Timestamp) -> Option<usize> {
-    let chronological = |(_, w): &(usize, &Week)| (w.season, w.week);
-    weeks
-        .iter()
-        .enumerate()
-        .filter(|(_, w)| !is_closed(w, now))
-        .min_by_key(chronological)
-        .or_else(|| weeks.iter().enumerate().max_by_key(chronological))
-        .map(|(index, _)| index)
 }
 
 pub fn week_label(week: &Week) -> String {
@@ -215,10 +202,10 @@ pub fn badge(lens: Lens, crowd_rank: Option<i64>, stats: Option<&QuarterbackStat
         .into_iter()
         .find(|stat| stat.lens == lens)
         .map_or_else(|| "—".to_owned(), |stat| stat.value);
-    let rank = match lens {
-        Lens::Qbr => stats.qbr_rank,
-        Lens::Epa => stats.epa_rank,
-        Lens::Cpoe => stats.cpoe_rank,
+    let (rank, band) = match lens {
+        Lens::Qbr => (stats.qbr_rank, stats.qbr_band),
+        Lens::Epa => (stats.epa_rank, stats.epa_band),
+        Lens::Cpoe => (stats.cpoe_rank, stats.cpoe_band),
         Lens::Crowd => unreachable!("handled above"),
     };
     let suffix = match rank {
@@ -227,10 +214,10 @@ pub fn badge(lens: Lens, crowd_rank: Option<i64>, stats: Option<&QuarterbackStat
         None if !stats.qualified => " n/q".to_owned(),
         None => String::new(),
     };
-    let tone = match rank {
-        Some(..=8) => Tone::Top,
-        Some(..=20) => Tone::Mid,
-        Some(_) => Tone::Low,
+    let tone = match band {
+        Some(RankBand::Top) => Tone::Top,
+        Some(RankBand::Mid) => Tone::Mid,
+        Some(RankBand::Low) => Tone::Low,
         None if value == "—" => Tone::Unranked,
         None => Tone::Plain,
     };
@@ -283,26 +270,11 @@ mod tests {
             week,
             closes_at: closes_at.map(|t| t.parse().unwrap()),
             is_closed,
+            is_default: false,
         }
     }
 
     const NOW: &str = "2026-11-07T12:00:00Z";
-
-    #[test]
-    fn initial_week_prefers_oldest_open_then_newest() {
-        let now = NOW.parse().unwrap();
-        let weeks = [
-            week(2026, 10, None, false),
-            week(2026, 9, Some("2026-11-08T00:00:00Z"), false),
-            // Not yet marked closed by the server, but its deadline has passed.
-            week(2026, 8, Some("2026-11-01T00:00:00Z"), false),
-        ];
-        assert_eq!(initial_week(&weeks, now), Some(1));
-
-        let all_closed = [week(2025, 18, None, true), week(2026, 1, None, true)];
-        assert_eq!(initial_week(&all_closed, now), Some(1));
-        assert_eq!(initial_week(&[], now), None);
-    }
 
     #[test]
     fn time_left_formats() {
@@ -361,7 +333,7 @@ mod tests {
         assert_eq!(got, [(15, 15, Some(4)), (4, 4, None), (5, 5, None)]);
     }
 
-    fn stats(qbr_rank: Option<i64>, qualified: bool) -> QuarterbackStats {
+    fn stats(qbr_rank: Option<(i64, RankBand)>, qualified: bool) -> QuarterbackStats {
         QuarterbackStats {
             season: 2026,
             games: 8,
@@ -372,9 +344,12 @@ mod tests {
             qbr: Some(61.27),
             qualified,
             qualified_count: 32,
-            qbr_rank,
+            qbr_rank: qbr_rank.map(|(rank, _)| rank),
             epa_rank: None,
             cpoe_rank: None,
+            qbr_band: qbr_rank.map(|(_, band)| band),
+            epa_band: None,
+            cpoe_band: None,
         }
     }
 
@@ -393,7 +368,11 @@ mod tests {
             ("Unranked".to_owned(), Tone::Unranked)
         );
         assert_eq!(
-            badge_text(Lens::Qbr, None, Some(&stats(Some(9), true))),
+            badge_text(
+                Lens::Qbr,
+                None,
+                Some(&stats(Some((9, RankBand::Mid)), true))
+            ),
             ("QBR 61.3 #9".to_owned(), Tone::Mid)
         );
         assert_eq!(

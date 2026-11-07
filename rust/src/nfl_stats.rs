@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
 use anyhow::{Context, anyhow, bail};
-use api_types::QuarterbackStats;
+use api_types::{QuarterbackStats, RankBand};
 use bytes::Bytes;
 use jiff::{Timestamp, civil, tz::TimeZone};
 use ntex::http::header;
@@ -316,6 +316,9 @@ fn build(season: i64, players: Vec<PlayerRow>, qbr: Vec<QbrRow>) -> ByName {
                 qbr_rank: None,
                 epa_rank: None,
                 cpoe_rank: None,
+                qbr_band: None,
+                epa_band: None,
+                cpoe_band: None,
             },
         );
     }
@@ -337,6 +340,21 @@ fn add_league_ranks(mut lines: Vec<&mut QuarterbackStats>) {
     rank_by(&mut lines, |l| l.qbr, |l| &mut l.qbr_rank);
     rank_by(&mut lines, |l| l.epa_per_dropback, |l| &mut l.epa_rank);
     rank_by(&mut lines, |l| l.cpoe, |l| &mut l.cpoe_rank);
+    for line in lines {
+        line.qbr_band = line.qbr_rank.map(band);
+        line.epa_band = line.epa_rank.map(band);
+        line.cpoe_band = line.cpoe_rank.map(band);
+    }
+}
+
+/// Both clients' badge legends spell these cutoffs out ("League top 8",
+/// "9–20", "21+"), so change them together.
+fn band(rank: i64) -> RankBand {
+    match rank {
+        ..=8 => RankBand::Top,
+        9..=20 => RankBand::Mid,
+        _ => RankBand::Low,
+    }
 }
 
 fn rank_by(
@@ -435,8 +453,27 @@ mod tests {
             (Some(1), None, None)
         );
 
+        assert_eq!(allen.epa_band, Some(RankBand::Top));
+
         let backup = &stats["backup guy"];
         assert!(!backup.qualified);
         assert_eq!(backup.epa_rank, None);
+        assert_eq!(backup.epa_band, None);
+    }
+
+    #[test]
+    fn bands_split_at_8_and_20() {
+        let bands: Vec<_> = [1, 8, 9, 20, 21, 32].into_iter().map(band).collect();
+        assert_eq!(
+            bands,
+            [
+                RankBand::Top,
+                RankBand::Top,
+                RankBand::Mid,
+                RankBand::Mid,
+                RankBand::Low,
+                RankBand::Low,
+            ]
+        );
     }
 }

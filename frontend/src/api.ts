@@ -1,49 +1,6 @@
-export interface Quarterback {
-  id: number
-  name: string
-  team: { id: number; name: string; abbreviation: string } | null
-}
+import type { Ballot, QuarterbackWithStats, Week } from './api.gen'
 
-export interface QuarterbackStats {
-  season: number
-  games: number
-  dropbacks: number
-  epa: number | null
-  epa_per_dropback: number | null
-  cpoe: number | null
-  qbr: number | null
-  /** League ranks cover only QBs past the backend's dropback cutoff. */
-  qualified: boolean
-  qualified_count: number
-  qbr_rank: number | null
-  epa_rank: number | null
-  cpoe_rank: number | null
-}
-
-/** /quarterbacks rows carry season-to-date stats; ballot and ranking payloads do not. */
-export interface QuarterbackWithStats extends Quarterback {
-  stats: QuarterbackStats | null
-}
-
-export interface Week {
-  season: number
-  week: number
-  closes_at: string | null
-  is_closed: boolean
-}
-
-export interface Rankings {
-  season: number
-  week: number
-  ballots: number
-  rankings: { rank: number; points: number; votes: number; previous_rank: number | null; quarterback: Quarterback }[]
-}
-
-export interface Ballot {
-  season: number
-  week: number
-  entries: { rank: number; quarterback: Quarterback }[]
-}
+export type * from './api.gen'
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {

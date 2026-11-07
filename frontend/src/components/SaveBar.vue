@@ -1,17 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { saveHint } from '../logic'
 
 const props = defineProps<{ count: number, closed: boolean, saving: boolean, dirty: boolean, hasSaved: boolean }>()
 defineEmits<{ add: [], save: [] }>()
 
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
-const hint = computed(() => {
-  const remaining = 15 - props.count
-  const unsaved = props.dirty && props.hasSaved ? 'Unsaved changes. ' : ''
-  if (remaining) return `${unsaved}${remaining} more ${remaining === 1 ? 'pick' : 'picks'} to complete your ballot.`
-  if (!props.dirty) return 'Ballot saved.'
-  return props.hasSaved ? 'Unsaved changes. Save to update your ballot.' : 'Lineup complete. Ready to save.'
-})
+const hint = computed(() => saveHint(props.count, props.dirty, props.hasSaved))
 </script>
 
 <template>

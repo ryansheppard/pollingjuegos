@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use api_types::QuarterbackStats;
+use api_types::{QuarterbackStats, RankBand};
 use cookie::Cookie;
 use ntex::http::{Request, Response, StatusCode, header};
 use ntex::web::{self, test};
@@ -216,7 +216,7 @@ async fn me_returns_the_session_user() {
 async fn weeks_are_newest_first_with_closed_flag() {
     let h = Harness::new();
     let body = json_body(h.call(h.get("/api/weeks").to_request()).await).await;
-    let got: Vec<(i64, i64, bool)> = body
+    let got: Vec<(i64, i64, bool, bool)> = body
         .as_array()
         .unwrap()
         .iter()
@@ -225,11 +225,20 @@ async fn weeks_are_newest_first_with_closed_flag() {
                 w["season"].as_i64().unwrap(),
                 w["week"].as_i64().unwrap(),
                 w["is_closed"].as_bool().unwrap(),
+                w["is_default"].as_bool().unwrap(),
             )
         })
         .collect();
     // 2026/2 has no deadline; ordering by closes_at would have sunk it to the bottom.
-    assert_eq!(got, [(2026, 2, false), (2026, 1, false), (2025, 18, true)]);
+    // The default is the oldest open week, not the newest.
+    assert_eq!(
+        got,
+        [
+            (2026, 2, false, false),
+            (2026, 1, false, true),
+            (2025, 18, true, false)
+        ]
+    );
     assert_eq!(body[0]["closes_at"], Value::Null);
     assert_eq!(body[2]["closes_at"], "2026-01-05T00:00:00Z");
 }
@@ -626,6 +635,9 @@ async fn cached_quarterbacks_follow_stats_refresh() {
         qbr_rank: Some(9),
         epa_rank: Some(11),
         cpoe_rank: Some(7),
+        qbr_band: Some(RankBand::Mid),
+        epa_band: Some(RankBand::Mid),
+        cpoe_band: Some(RankBand::Top),
     };
     h.nfl
         .replace([(normalize_name(&name), stats)].into_iter().collect());

@@ -179,7 +179,7 @@ impl Poll {
                 self.ready = true;
                 self.weeks = weeks;
                 self.catalog = catalog;
-                match logic::initial_week(&self.weeks, self.now) {
+                match self.weeks.iter().position(|week| week.is_default) {
                     Some(index) => self.load_week(index),
                     None => Task::none(),
                 }
