@@ -39,6 +39,8 @@ pub struct Poll {
     generation: u64,
     tab: Tab,
     error: Option<String>,
+    /// Confirmation of the last action, e.g. copying results.
+    notice: Option<String>,
     now: Timestamp,
 }
 
@@ -65,6 +67,7 @@ pub enum Message {
         result: Fetched<WeekData>,
     },
     SelectTab(Tab),
+    CopyResults,
     Tick,
     SignOut,
 }
@@ -94,6 +97,7 @@ impl Poll {
             generation: 0,
             tab: Tab::Ballot,
             error: None,
+            notice: None,
             now: Timestamp::now(),
         };
         (poll, load)
@@ -150,6 +154,18 @@ impl Poll {
                 self.tab = tab;
                 (Task::none(), Action::None)
             }
+            Message::CopyResults => {
+                // While another week loads, `self.week` still holds the old one.
+                let (Some(week), Some(data)) = (self.current_week(), &self.week) else {
+                    return (Task::none(), Action::None);
+                };
+                if self.loading_week {
+                    return (Task::none(), Action::None);
+                }
+                let copy = iced::clipboard::write(logic::results_text(week, &data.rankings));
+                self.notice = Some("Copied the top 10 to the clipboard.".to_owned());
+                (copy, Action::None)
+            }
             Message::Tick => {
                 self.now = Timestamp::now();
                 (Task::none(), Action::None)
@@ -177,6 +193,9 @@ impl Poll {
         if let Some(error) = &self.error {
             page = page.push(text(error).style(text::danger));
         }
+        if let Some(notice) = &self.notice {
+            page = page.push(text(notice).style(text::success));
+        }
         container(page.push(content)).padding(16).into()
     }
 
@@ -185,6 +204,7 @@ impl Poll {
         self.selected = Some(index);
         self.loading_week = true;
         self.error = None;
+        self.notice = None;
         self.generation += 1;
         let generation = self.generation;
         let (client, token) = (self.client.clone(), self.token.clone());
