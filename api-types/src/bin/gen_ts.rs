@@ -3,8 +3,9 @@
 //! `bazel run //frontend:update_api_types`.
 
 use api_types::{
-    Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Me,
-    Quarterback, QuarterbackStats, QuarterbackWithStats, RankingEntry, Rankings, Team, Week,
+    Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Disagreement,
+    Me, Quarterback, QuarterbackStats, QuarterbackWithStats, RankBand, RankingEntry, Rankings,
+    Team, Week,
 };
 use ts_rs::{Config, TS};
 
@@ -24,10 +25,12 @@ fn main() {
         export::<Team>(&cfg),
         export::<Quarterback>(&cfg),
         export::<QuarterbackStats>(&cfg),
+        export::<RankBand>(&cfg),
         export::<QuarterbackWithStats>(&cfg),
         export::<BallotRequest>(&cfg),
         export::<BallotEntry>(&cfg),
         export::<Ballot>(&cfg),
+        export::<Disagreement>(&cfg),
         export::<RankingEntry>(&cfg),
         export::<Rankings>(&cfg),
         export::<DesktopTokenRequest>(&cfg),

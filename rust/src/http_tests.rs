@@ -3,7 +3,7 @@
 
 use std::sync::Arc;
 
-use api_types::QuarterbackStats;
+use api_types::{QuarterbackStats, RankBand};
 use cookie::Cookie;
 use ntex::http::{Request, Response, StatusCode, header};
 use ntex::web::{self, test};
@@ -216,7 +216,7 @@ async fn me_returns_the_session_user() {
 async fn weeks_are_newest_first_with_closed_flag() {
     let h = Harness::new();
     let body = json_body(h.call(h.get("/api/weeks").to_request()).await).await;
-    let got: Vec<(i64, i64, bool)> = body
+    let got: Vec<(i64, i64, bool, bool)> = body
         .as_array()
         .unwrap()
         .iter()
@@ -225,11 +225,20 @@ async fn weeks_are_newest_first_with_closed_flag() {
                 w["season"].as_i64().unwrap(),
                 w["week"].as_i64().unwrap(),
                 w["is_closed"].as_bool().unwrap(),
+                w["is_default"].as_bool().unwrap(),
             )
         })
         .collect();
     // 2026/2 has no deadline; ordering by closes_at would have sunk it to the bottom.
-    assert_eq!(got, [(2026, 2, false), (2026, 1, false), (2025, 18, true)]);
+    // The default is the oldest open week, not the newest.
+    assert_eq!(
+        got,
+        [
+            (2026, 2, false, false),
+            (2026, 1, false, true),
+            (2025, 18, true, false)
+        ]
+    );
     assert_eq!(body[0]["closes_at"], Value::Null);
     assert_eq!(body[2]["closes_at"], "2026-01-05T00:00:00Z");
 }
@@ -302,7 +311,10 @@ async fn ballot_round_trip_and_rankings() {
     let ids = h.qb_ids(15);
 
     let empty = json_body(h.call(h.get("/api/weeks/2026/1/ballot").to_request()).await).await;
-    assert_eq!(empty, json!({ "season": 2026, "week": 1, "entries": [] }));
+    assert_eq!(
+        empty,
+        json!({ "season": 2026, "week": 1, "entries": [], "disagreements": [] })
+    );
 
     let res = h
         .call(h.put_ballot("/api/weeks/2026/1/ballot", &ids).to_request())
@@ -313,6 +325,22 @@ async fn ballot_round_trip_and_rankings() {
     assert_eq!(saved["entries"][0]["rank"], 1);
     assert_eq!(saved["entries"][0]["quarterback"]["id"], ids[0]);
     assert!(saved["entries"][0]["quarterback"]["team"]["abbreviation"].is_string());
+    // As the only voter, the crowd's top 10 is this ballot's, so only picks
+    // 11-15 differ; #15 is furthest from the "just outside" rank of 11.
+    let gaps: Vec<_> = saved["disagreements"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|row| (row["quarterback"]["id"].clone(), row["mine"].clone(), row["crowd"].clone()))
+        .collect();
+    assert_eq!(
+        gaps,
+        [
+            (json!(ids[14]), json!(15), Value::Null),
+            (json!(ids[13]), json!(14), Value::Null),
+            (json!(ids[12]), json!(13), Value::Null),
+        ]
+    );
 
     let fetched = json_body(h.call(h.get("/api/weeks/2026/1/ballot").to_request()).await).await;
     assert_eq!(fetched, saved);
@@ -626,6 +654,9 @@ async fn cached_quarterbacks_follow_stats_refresh() {
         qbr_rank: Some(9),
         epa_rank: Some(11),
         cpoe_rank: Some(7),
+        qbr_band: Some(RankBand::Mid),
+        epa_band: Some(RankBand::Mid),
+        cpoe_band: Some(RankBand::Top),
     };
     h.nfl
         .replace([(normalize_name(&name), stats)].into_iter().collect());

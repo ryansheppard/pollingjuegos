@@ -12,6 +12,10 @@ pub struct Week {
     pub week: i64,
     pub closes_at: Option<Timestamp>,
     pub is_closed: bool,
+    /// The week clients open on: the oldest still taking votes, or the newest
+    /// if every week is closed. Exactly one week in a list has it set.
+    #[serde(default)]
+    pub is_default: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -49,6 +53,19 @@ pub struct QuarterbackStats {
     pub qbr_rank: Option<i64>,
     pub epa_rank: Option<i64>,
     pub cpoe_rank: Option<i64>,
+    /// Set exactly when the matching rank is.
+    pub qbr_band: Option<RankBand>,
+    pub epa_band: Option<RankBand>,
+    pub cpoe_band: Option<RankBand>,
+}
+
+/// Which slice of the league a stat rank falls in; clients color badges by it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum RankBand {
+    Top,
+    Mid,
+    Low,
 }
 
 /// /quarterbacks rows carry season-to-date stats; ballot and ranking payloads do not.
@@ -77,6 +94,18 @@ pub struct Ballot {
     pub season: i64,
     pub week: i64,
     pub entries: Vec<BallotEntry>,
+    /// Up to three saved picks furthest from the crowd's top 10, biggest gap
+    /// first. Empty until the voter and the crowd both have ballots.
+    #[serde(default)]
+    pub disagreements: Vec<Disagreement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+pub struct Disagreement {
+    pub quarterback: Quarterback,
+    pub mine: i64,
+    /// Null when the pick isn't in the crowd's top 10.
+    pub crowd: Option<i64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

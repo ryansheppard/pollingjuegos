@@ -1,6 +1,11 @@
 // Generated from api-types by `bazel run //frontend:update_api_types`. Do not edit.
 
-export type Week = { id: number, season: number, week: number, closes_at: string | null, is_closed: boolean, };
+export type Week = { id: number, season: number, week: number, closes_at: string | null, is_closed: boolean, 
+/**
+ * The week clients open on: the oldest still taking votes, or the newest
+ * if every week is closed. Exactly one week in a list has it set.
+ */
+is_default: boolean, };
 
 export type Me = { id: number, };
 
@@ -13,7 +18,16 @@ export type QuarterbackStats = { season: number, games: number, dropbacks: numbe
  * Ranks only cover QBs with enough dropbacks to qualify; null otherwise or
  * when the stat itself is missing.
  */
-qualified: boolean, qualified_count: number, qbr_rank: number | null, epa_rank: number | null, cpoe_rank: number | null, };
+qualified: boolean, qualified_count: number, qbr_rank: number | null, epa_rank: number | null, cpoe_rank: number | null, 
+/**
+ * Set exactly when the matching rank is.
+ */
+qbr_band: RankBand | null, epa_band: RankBand | null, cpoe_band: RankBand | null, };
+
+/**
+ * Which slice of the league a stat rank falls in; clients color badges by it.
+ */
+export type RankBand = "top" | "mid" | "low";
 
 /**
  * /quarterbacks rows carry season-to-date stats; ballot and ranking payloads do not.
@@ -32,7 +46,18 @@ quarterback_ids: Array<number>, };
 
 export type BallotEntry = { rank: number, quarterback: Quarterback, };
 
-export type Ballot = { season: number, week: number, entries: Array<BallotEntry>, };
+export type Ballot = { season: number, week: number, entries: Array<BallotEntry>, 
+/**
+ * Up to three saved picks furthest from the crowd's top 10, biggest gap
+ * first. Empty until the voter and the crowd both have ballots.
+ */
+disagreements: Array<Disagreement>, };
+
+export type Disagreement = { quarterback: Quarterback, mine: number, 
+/**
+ * Null when the pick isn't in the crowd's top 10.
+ */
+crowd: number | null, };
 
 export type RankingEntry = { rank: number, points: number, votes: number, previous_rank: number | null, quarterback: Quarterback, };
 

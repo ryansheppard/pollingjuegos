@@ -1,9 +1,6 @@
 //! Pure helpers kept out of the view code so they can be tested.
 
-use std::cmp::Reverse;
-use std::collections::HashMap;
-
-use api_types::{Ballot, Quarterback, QuarterbackStats, Rankings, Week};
+use api_types::{Quarterback, QuarterbackStats, RankBand, Rankings, Week};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
@@ -12,19 +9,6 @@ use serde::{Deserialize, Serialize};
 /// can pass while the app is open.
 pub fn is_closed(week: &Week, now: Timestamp) -> bool {
     week.is_closed || week.closes_at.is_some_and(|closes| now >= closes)
-}
-
-/// Defaults to the oldest week still taking votes, or the most recent one if
-/// every week is closed. Returns an index into `weeks`.
-pub fn initial_week(weeks: &[Week], now: Timestamp) -> Option<usize> {
-    let chronological = |(_, w): &(usize, &Week)| (w.season, w.week);
-    weeks
-        .iter()
-        .enumerate()
-        .filter(|(_, w)| !is_closed(w, now))
-        .min_by_key(chronological)
-        .or_else(|| weeks.iter().enumerate().max_by_key(chronological))
-        .map(|(index, _)| index)
 }
 
 pub fn week_label(week: &Week) -> String {
@@ -64,36 +48,6 @@ pub fn qb_label(qb: &Quarterback) -> String {
         Some(team) => format!("{} ({})", qb.name, team.abbreviation),
         None => qb.name.clone(),
     }
-}
-
-pub struct Disagreement<'a> {
-    pub quarterback: &'a Quarterback,
-    pub mine: i64,
-    /// `None` when the pick isn't in the crowd's top 10.
-    pub crowd: Option<i64>,
-}
-
-/// The saved picks that differ most from the crowd's ranking, biggest gap first.
-pub fn disagreements<'a>(saved: &'a Ballot, rankings: &Rankings) -> Vec<Disagreement<'a>> {
-    let crowd: HashMap<i64, i64> = rankings
-        .rankings
-        .iter()
-        .map(|row| (row.quarterback.id, row.rank))
-        .collect();
-    let mut rows: Vec<_> = saved
-        .entries
-        .iter()
-        .map(|entry| Disagreement {
-            quarterback: &entry.quarterback,
-            mine: entry.rank,
-            crowd: crowd.get(&entry.quarterback.id).copied(),
-        })
-        .filter(|row| row.crowd != Some(row.mine))
-        .collect();
-    // Picks outside the top 10 count as if ranked just below it.
-    rows.sort_by_key(|row| Reverse((row.mine - row.crowd.unwrap_or(11)).abs()));
-    rows.truncate(3);
-    rows
 }
 
 /// Plain-text stand-in for the web app's shareable results image.
@@ -215,10 +169,10 @@ pub fn badge(lens: Lens, crowd_rank: Option<i64>, stats: Option<&QuarterbackStat
         .into_iter()
         .find(|stat| stat.lens == lens)
         .map_or_else(|| "—".to_owned(), |stat| stat.value);
-    let rank = match lens {
-        Lens::Qbr => stats.qbr_rank,
-        Lens::Epa => stats.epa_rank,
-        Lens::Cpoe => stats.cpoe_rank,
+    let (rank, band) = match lens {
+        Lens::Qbr => (stats.qbr_rank, stats.qbr_band),
+        Lens::Epa => (stats.epa_rank, stats.epa_band),
+        Lens::Cpoe => (stats.cpoe_rank, stats.cpoe_band),
         Lens::Crowd => unreachable!("handled above"),
     };
     let suffix = match rank {
@@ -227,10 +181,10 @@ pub fn badge(lens: Lens, crowd_rank: Option<i64>, stats: Option<&QuarterbackStat
         None if !stats.qualified => " n/q".to_owned(),
         None => String::new(),
     };
-    let tone = match rank {
-        Some(..=8) => Tone::Top,
-        Some(..=20) => Tone::Mid,
-        Some(_) => Tone::Low,
+    let tone = match band {
+        Some(RankBand::Top) => Tone::Top,
+        Some(RankBand::Mid) => Tone::Mid,
+        Some(RankBand::Low) => Tone::Low,
         None if value == "—" => Tone::Unranked,
         None => Tone::Plain,
     };
@@ -272,8 +226,6 @@ pub fn save_hint(count: usize, dirty: bool, has_saved: bool) -> String {
 
 #[cfg(test)]
 mod tests {
-    use api_types::{BallotEntry, RankingEntry};
-
     use super::*;
 
     fn week(season: i64, week: i64, closes_at: Option<&str>, is_closed: bool) -> Week {
@@ -283,26 +235,11 @@ mod tests {
             week,
             closes_at: closes_at.map(|t| t.parse().unwrap()),
             is_closed,
+            is_default: false,
         }
     }
 
     const NOW: &str = "2026-11-07T12:00:00Z";
-
-    #[test]
-    fn initial_week_prefers_oldest_open_then_newest() {
-        let now = NOW.parse().unwrap();
-        let weeks = [
-            week(2026, 10, None, false),
-            week(2026, 9, Some("2026-11-08T00:00:00Z"), false),
-            // Not yet marked closed by the server, but its deadline has passed.
-            week(2026, 8, Some("2026-11-01T00:00:00Z"), false),
-        ];
-        assert_eq!(initial_week(&weeks, now), Some(1));
-
-        let all_closed = [week(2025, 18, None, true), week(2026, 1, None, true)];
-        assert_eq!(initial_week(&all_closed, now), Some(1));
-        assert_eq!(initial_week(&[], now), None);
-    }
 
     #[test]
     fn time_left_formats() {
@@ -315,53 +252,7 @@ mod tests {
         assert_eq!(time_left(&week(2026, 1, None, false), now), "Open");
     }
 
-    fn qb(id: i64) -> Quarterback {
-        Quarterback {
-            id,
-            name: format!("QB {id}"),
-            team: None,
-        }
-    }
-
-    #[test]
-    fn disagreements_rank_biggest_gaps_first() {
-        let saved = Ballot {
-            season: 2026,
-            week: 1,
-            entries: (1..=15)
-                .map(|rank| BallotEntry {
-                    rank,
-                    quarterback: qb(rank),
-                })
-                .collect(),
-        };
-        // The crowd agrees on QB 1, swaps QBs 2 and 3, and puts QB 15 at #4.
-        let crowd = [(1, 1), (3, 2), (2, 3), (15, 4)];
-        let rankings = Rankings {
-            season: 2026,
-            week: 1,
-            ballots: 3,
-            rankings: crowd
-                .iter()
-                .map(|&(id, rank)| RankingEntry {
-                    rank,
-                    points: 0,
-                    votes: 0,
-                    previous_rank: None,
-                    quarterback: qb(id),
-                })
-                .collect(),
-        };
-        let got: Vec<_> = disagreements(&saved, &rankings)
-            .iter()
-            .map(|row| (row.quarterback.id, row.mine, row.crowd))
-            .collect();
-        // QB 15 is 11 off; unranked QBs 4 and 5 are 7 and 6 from the
-        // "just outside" #11.
-        assert_eq!(got, [(15, 15, Some(4)), (4, 4, None), (5, 5, None)]);
-    }
-
-    fn stats(qbr_rank: Option<i64>, qualified: bool) -> QuarterbackStats {
+    fn stats(qbr_rank: Option<(i64, RankBand)>, qualified: bool) -> QuarterbackStats {
         QuarterbackStats {
             season: 2026,
             games: 8,
@@ -372,9 +263,12 @@ mod tests {
             qbr: Some(61.27),
             qualified,
             qualified_count: 32,
-            qbr_rank,
+            qbr_rank: qbr_rank.map(|(rank, _)| rank),
             epa_rank: None,
             cpoe_rank: None,
+            qbr_band: qbr_rank.map(|(_, band)| band),
+            epa_band: None,
+            cpoe_band: None,
         }
     }
 
@@ -393,7 +287,7 @@ mod tests {
             ("Unranked".to_owned(), Tone::Unranked)
         );
         assert_eq!(
-            badge_text(Lens::Qbr, None, Some(&stats(Some(9), true))),
+            badge_text(Lens::Qbr, None, Some(&stats(Some((9, RankBand::Mid)), true))),
             ("QBR 61.3 #9".to_owned(), Tone::Mid)
         );
         assert_eq!(

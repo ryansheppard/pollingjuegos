@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type QuarterbackStats, type QuarterbackWithStats, type Rankings, type Week } from './api'
+import { loadQuarterbacks, request, saveBallot, type Ballot, type Disagreement, type Quarterback, type QuarterbackWithStats, type Rankings, type Week } from './api'
+import { badge, isClosed, lenses, matchesSearch, statLine, timeLeft as formatTimeLeft, type Lens } from './logic'
 import SaveBar from './components/SaveBar.vue'
 
 const weeks = ref<Week[]>([])
@@ -43,7 +44,7 @@ function toggleTheme() {
 }
 
 const week = computed(() => weeks.value.find((w) => `${w.season}/${w.week}` === selected.value))
-const closed = computed(() => !!week.value && (week.value.is_closed || (!!week.value.closes_at && now.value >= Date.parse(week.value.closes_at))))
+const closed = computed(() => !!week.value && isClosed(week.value, now.value))
 const previousWeek = computed(() => {
   const index = weeks.value.findIndex((w) => `${w.season}/${w.week}` === selected.value)
   return index < 0 ? undefined : weeks.value[index + 1]
@@ -62,14 +63,7 @@ const closesLabel = computed(() => {
   return new Date(week.value.closes_at).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 })
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
-const timeLeft = computed(() => {
-  if (!week.value) return '—'
-  if (closed.value) return 'Closed'
-  if (!week.value.closes_at) return 'Open'
-  const minutes = Math.max(0, Math.floor((Date.parse(week.value.closes_at) - now.value) / 60_000))
-  const d = Math.floor(minutes / 1440), h = Math.floor((minutes % 1440) / 60), m = minutes % 60
-  return d ? `${d}d ${h}h ${String(m).padStart(2, '0')}m` : h ? `${h}h ${String(m).padStart(2, '0')}m` : `${m}m`
-})
+const timeLeft = computed(() => week.value ? formatTimeLeft(week.value, now.value) : '—')
 const crowdRanks = computed(() => new Map((rankings.value?.rankings ?? []).map((row) => [row.quarterback.id, row.rank])))
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function focusSearch() {
@@ -135,14 +129,7 @@ function endDrag() {
   window.removeEventListener('pointercancel', endDrag)
 }
 const draftKey = computed(() => userId.value === null || !week.value ? null : `pollingjuegos-draft-${userId.value}-${week.value.season}-${week.value.week}`)
-const disagreements = computed(() => {
-  if (!savedIds.value.length || !rankings.value?.rankings.length) return []
-  const ranks = new Map(rankings.value.rankings.map((row) => [row.quarterback.id, row.rank]))
-  const byId = new Map(catalog.value.map((qb) => [qb.id, qb]))
-  return savedIds.value.map((id, index) => ({ qb: byId.get(id), mine: index + 1, theirs: ranks.get(id) }))
-    .filter((row) => row.qb && row.theirs !== row.mine)
-    .sort((a, b) => Math.abs(b.mine - (b.theirs ?? 11)) - Math.abs(a.mine - (a.theirs ?? 11))).slice(0, 3)
-})
+const disagreements = ref<Disagreement[]>([])
 function sameIds(a: number[], b: number[]) { return a.length === b.length && a.every((id, index) => id === b[index]) }
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const dirty = computed(() => !sameIds(ballot.value.map((qb) => qb.id), savedIds.value))
@@ -160,38 +147,9 @@ const topScore = computed(() => rankings.value?.rankings[0]?.points || 1)
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const available = computed(() => {
   const selectedIds = new Set(ballot.value.map((qb) => qb.id))
-  const terms = search.value.trim().toLowerCase().split(/\s+/)
-  return catalog.value.filter((qb) => {
-    if (selectedIds.has(qb.id)) return false
-    const haystack = `${qb.name} ${qb.team?.name ?? ''} ${qb.team?.abbreviation ?? ''}`.toLowerCase()
-    return terms.every((term) => haystack.includes(term))
-  })
+  return catalog.value.filter((qb) => !selectedIds.has(qb.id) && matchesSearch(qb, search.value))
 })
 
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
-function label(qb: Quarterback) {
-  return `${qb.name}${qb.team ? ` (${qb.team.abbreviation})` : ''}`
-}
-
-function signed(value: number, digits: number) {
-  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${Math.abs(value).toFixed(digits)}`
-}
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
-function statLine(stats: QuarterbackStats) {
-  return [
-    { key: 'qbr', label: 'QBR', title: 'ESPN Total QBR', value: stats.qbr === null ? '—' : stats.qbr.toFixed(1) },
-    { key: 'epa', label: 'EPA', title: `EPA per dropback (${stats.epa === null ? '—' : signed(stats.epa, 1)} total over ${stats.dropbacks} dropbacks)`, value: stats.epa_per_dropback === null ? '—' : signed(stats.epa_per_dropback, 2) },
-    { key: 'cpoe', label: 'CPOE', title: 'Completion % over expected', value: stats.cpoe === null ? '—' : signed(stats.cpoe, 1) },
-  ]
-}
-
-type Lens = 'crowd' | 'qbr' | 'epa' | 'cpoe'
-const lenses: { key: Lens, label: string }[] = [
-  { key: 'crowd', label: 'Crowd' },
-  { key: 'qbr', label: 'QBR' },
-  { key: 'epa', label: 'EPA' },
-  { key: 'cpoe', label: 'CPOE' },
-]
 const lensKey = 'pollingjuegos-ballot-lens'
 const lens = ref<Lens>(getInitialLens())
 function getInitialLens(): Lens {
@@ -212,22 +170,7 @@ const qualifiedCount = computed(() => catalog.value.find((qb) => qb.stats)?.stat
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const showBadge = computed(() => lens.value !== 'crowd' || !!rankings.value?.ballots)
 function badgeFor(qb: Quarterback) {
-  const key = lens.value
-  if (key === 'crowd') {
-    const rank = crowdRanks.value.get(qb.id)
-    return { text: rank ? `Crowd #${rank}` : 'Unranked', rank: '', tone: rank ? '' : 'unranked', title: undefined }
-  }
-  const label = lenses.find((option) => option.key === key)!.label
-  const stats = statsById.value.get(qb.id)
-  if (!stats) return { text: `${label} —`, rank: '', tone: 'unranked', title: 'No stats this season' }
-  const stat = statLine(stats).find((entry) => entry.key === key)!
-  const rank = stats[`${key}_rank`]
-  return {
-    text: `${stat.label} ${stat.value}`,
-    rank: rank !== null ? `#${rank}` : stats.qualified ? '' : 'n/q',
-    tone: rank === null ? (stat.value === '—' ? 'unranked' : '') : rank <= 8 ? 'rank-top' : rank <= 20 ? 'rank-mid' : 'rank-low',
-    title: stats.qualified ? stat.title : `${stat.title} · too few dropbacks to rank`,
-  }
+  return badge(lens.value, crowdRanks.value.get(qb.id), statsById.value.get(qb.id))
 }
 // oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const ballotRows = computed(() => ballot.value.map((qb) => ({ qb, badge: badgeFor(qb) })))
@@ -288,6 +231,7 @@ async function loadWeek() {
     tab.value = nextTab
     rankings.value = results
     savedIds.value = mine.entries.map((entry) => entry.quarterback.id)
+    disagreements.value = mine.disagreements
     let ids = savedIds.value
     const key = draftKey.value
     if (key && !closed.value) {
@@ -321,6 +265,7 @@ async function loadWeek() {
 function clearWeek() {
   rankings.value = null
   savedIds.value = []
+  disagreements.value = []
   ballot.value = []
 }
 
@@ -336,6 +281,7 @@ async function submit() {
     const result = await saveBallot(current, ballot.value.map((qb) => qb.id))
     ballot.value = result.entries.map((entry) => entry.quarterback)
     savedIds.value = ballot.value.map((qb) => qb.id)
+    disagreements.value = result.disagreements
     try { if (draftKey.value) draftStorage()?.removeItem(draftKey.value) } catch { /* Optional draft storage. */ }
     message.value = 'Ballot saved. Horrible picks.'
     try {
@@ -415,13 +361,9 @@ onMounted(async () => {
     userId.value = me.id
     catalog.value = qbs
     weeks.value = weekList
-    // Weeks arrive newest first; default to the oldest still accepting votes.
-    // If all weeks are closed, show the most recent results instead.
-    const openWeeks = weekList.filter((w) => !w.is_closed &&
-      (!w.closes_at || Date.parse(w.closes_at) > Date.now()))
-    const chronological = (a: Week, b: Week) => a.season - b.season || a.week - b.week
-    const initialWeek = openWeeks.sort(chronological)[0] ?? [...weekList].sort(chronological).at(-1)
-    if (initialWeek) selected.value = `${initialWeek.season}/${initialWeek.week}`
+    // The server marks the oldest week still taking votes, or the newest if all are closed.
+    const first = weekList.find((w) => w.is_default)
+    if (first) selected.value = `${first.season}/${first.week}`
     else { loading.value = false; ready.value = true }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Could not load poll data.'
@@ -702,9 +644,9 @@ onMounted(async () => {
           <h3 id="vs-title">You vs. the crowd</h3>
           <p class="panel-sub">Your saved picks compared with the live top 10.</p>
           <ul class="vs-list">
-            <li v-for="row in disagreements" :key="row.qb!.id">
-              <span class="player-name">{{ row.qb!.name }}</span>
-              <span class="vs-ranks">You <strong>#{{ row.mine }}</strong> · Crowd <strong>{{ row.theirs ? `#${row.theirs}` : '—' }}</strong></span>
+            <li v-for="row in disagreements" :key="row.quarterback.id">
+              <span class="player-name">{{ row.quarterback.name }}</span>
+              <span class="vs-ranks">You <strong>#{{ row.mine }}</strong> · Crowd <strong>{{ row.crowd ? `#${row.crowd}` : '—' }}</strong></span>
             </li>
           </ul>
         </section>
