@@ -68,7 +68,10 @@ crate.from_cargo(
     name = "crates",
     cargo_lock = "//:Cargo.lock",
     cargo_toml = "//:Cargo.toml",
-    platform_triples = ["x86_64-unknown-linux-gnu"],
+    platform_triples = [
+        "x86_64-unknown-linux-gnu",
+        "x86_64-pc-windows-gnullvm",
+    ],
 )
 
 # build.rs uses env!("CARGO_MANIFEST_DIR"), which bakes the compile sandbox's
@@ -77,5 +80,15 @@ crate.annotation(
     crate = "libsqlite3-sys",
     patch_args = ["-p1"],
     patches = ["//rust/patches:libsqlite3-sys-manifest-dir.patch"],
+)
+
+# Same problem as libsqlite3-sys: build.rs writes include_bytes! paths that
+# point into the build script's sandbox, which is gone by the time the library
+# compiles. Only reached when building the desktop app for Windows (wgpu's WGL
+# backend).
+crate.annotation(
+    crate = "khronos_api",
+    patch_args = ["-p1"],
+    patches = ["//rust/patches:khronos_api-manifest-dir.patch"],
 )
 use_repo(crate, "crates")
