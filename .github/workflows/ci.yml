@@ -17,19 +17,16 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          submodules: recursive
+          persist-credentials: false
       - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
-        with:
-          disk-cache: ${{ github.workflow }}
-          repository-cache: true
-          external-cache: true
-          cache-save: ${{ github.event_name == 'push' }}
-          bazelrc: |
-            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-            common --bes_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
       - run: hk check --all
-      - run: bazel test //... --test_output=errors
+      - name: Test on the runner MicroVM
+        env:
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          # PRs test their head commit; the VM can't fetch GitHub's synthetic merge commit.
+          COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: runner/vm-run.sh pollingjuegos-runner "$COMMIT" -- bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
         with:
@@ -61,11 +58,8 @@ jobs:
         run: |
           set -euo pipefail
           release="${GITHUB_SHA::12}"
-          # Looked up by name so recreating the VM in Terraform needs no workflow change.
-          vm=$(doctl compute microvm list --format ID,Name --no-header | awk '$2 == "pollingjuegos-runner" { print $1 }')
-          [[ -n $vm ]] || { echo "No MicroVM named pollingjuegos-runner" >&2; exit 1; }
-          runner/vm-bazel.sh --registry-push --no-pause "$vm" "$GITHUB_SHA" -- run //backend:push -- -tag "$release"
-          runner/vm-bazel.sh --registry-push "$vm" "$GITHUB_SHA" -- run //frontend:push -- -tag "$release"
+          runner/vm-run.sh --registry-push --no-pause pollingjuegos-runner "$GITHUB_SHA" -- bazel run //backend:push -- -tag "$release"
+          runner/vm-run.sh --registry-push pollingjuegos-runner "$GITHUB_SHA" -- bazel run //frontend:push -- -tag "$release"
           echo "Published $release" >> "$GITHUB_STEP_SUMMARY"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
@@ -124,41 +118,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: jdx/mise-action@c2a87611a18de5b3828c5652fe268e992400cb5c  # v4.3.0
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86  # 0.19.0
+      - uses: digitalocean/action-doctl@3cb3953159719656269e044e0e24ca16dd2a690f  # v2.5.2
         with:
-          disk-cache: release
-          repository-cache: true
-          external-cache: true
-          bazelrc: |
-            common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-            common --bes_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-      - name: Build Linux and Windows binaries
-        run: |
-          set -euo pipefail
-          name="pollingjuegos-desktop-${GITHUB_REF_NAME}"
-          mkdir -p dist staging
-
-          # bazel-bin follows the last build's configuration, so copy each
-          # output out before building the next platform.
-          bazel build //desktop -c opt
-          cp bazel-bin/desktop/desktop staging/pollingjuegos
-          tar -C staging -czf "dist/${name}-linux-x86_64.tar.gz" pollingjuegos
-
-          bazel build //desktop -c opt --platforms=//:windows_x86_64
-          cp bazel-bin/desktop/desktop.exe staging/pollingjuegos.exe
-          (cd staging && zip -q "../dist/${name}-windows-x86_64.zip" pollingjuegos.exe)
-
-          (cd dist && sha256sum -- * > SHA256SUMS)
-      - name: Create GitHub release
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: Build and release on the runner MicroVM
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
-            --repo "$GITHUB_REPOSITORY" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes \
-            --verify-tag
+          DIGITALOCEAN_ACCESS_TOKEN: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          # Scoped to this repo and expires with the job, which outlives the upload.
+          VM_GITHUB_TOKEN: ${{ github.token }}
+        run: runner/vm-run.sh pollingjuegos-runner "$GITHUB_SHA" -- runner/release-desktop.sh "$GITHUB_REF_NAME"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
         with:

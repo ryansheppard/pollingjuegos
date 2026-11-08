@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# Runs a Bazel command for one commit on the runner MicroVM and streams its output.
+# Runs a command in a checkout of one commit on the runner MicroVM and streams its output.
 #
-# Usage: runner/vm-bazel.sh [--registry-push] [--no-pause] <microvm-id> <commit-sha> -- <bazel args...>
+# Usage: runner/vm-run.sh [--registry-push] [--no-pause] <microvm-name-or-id> <commit-sha> -- <command...>
+#   e.g. runner/vm-run.sh pollingjuegos-runner "$sha" -- bazel test //...
 #
 # Environment:
 #   DIGITALOCEAN_ACCESS_TOKEN  token for doctl (DIGITALOCEAN_TOKEN is used as a fallback)
 #   BUILDBUDDY_API_KEY         optional; handed to Bazel through a credential helper
-#   VM_BAZEL_REPO_URL          optional; defaults to this repository on GitHub
+#   VM_GITHUB_TOKEN            optional; exported to the command as GH_TOKEN
+#   VM_RUN_REPO_URL            optional; defaults to this repository on GitHub
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 [--registry-push] [--no-pause] <microvm-id> <commit-sha> -- <bazel args...>" >&2
+  echo "usage: $0 [--registry-push] [--no-pause] <microvm-name-or-id> <commit-sha> -- <command...>" >&2
   exit 2
 }
 
@@ -34,7 +36,7 @@ shift 3
   exit 2
 }
 
-repo_url=${VM_BAZEL_REPO_URL:-https://github.com/ryansheppard/pollingjuegos}
+repo_url=${VM_RUN_REPO_URL:-https://github.com/ryansheppard/pollingjuegos}
 poll_seconds=10
 # exec output is capped at 4 MiB, so each poll fetches at most this much log.
 chunk_bytes=$((3 * 1024 * 1024))
@@ -45,8 +47,18 @@ if [[ -z ${DIGITALOCEAN_ACCESS_TOKEN:-} && -n ${DIGITALOCEAN_TOKEN:-} ]]; then
   export DIGITALOCEAN_ACCESS_TOKEN=$DIGITALOCEAN_TOKEN
 fi
 
+if [[ ! $vm =~ ^[0-9a-f]{8}-[0-9a-f]{4}- ]]; then
+  name=$vm
+  vm=$(timeout 30 doctl compute microvm list --format ID,Name --no-header | awk -v n="$name" '$2 == n { print $1 }')
+  [[ -n $vm ]] || {
+    echo "No MicroVM named $name" >&2
+    exit 1
+  }
+fi
+
 run_id=${GITHUB_RUN_ID:-local}-${GITHUB_RUN_ATTEMPT:-0}-$$-$(date +%s)
-dir=/tmp/vm-bazel/$run_id
+jobs_dir=/tmp/vm-run
+dir=$jobs_dir/$run_id
 
 # The poll loop does its own backing off, so doctl's retries would only multiply requests,
 # and the timeout keeps a hung API call from blocking Ctrl-C (bash waits for the child).
@@ -70,15 +82,15 @@ put_secret() {
 
 # The job script runs detached on the VM because exec commands time out after 60s.
 job_script() {
-  local bazel_args
-  bazel_args=$(printf '%q ' "$@")
+  local command
+  command=$(printf '%q ' "$@")
   cat <<EOF
 #!/usr/bin/env bash
 set -uo pipefail
 dir=$dir
 echo \$\$ > "\$dir/pid"
 
-exec 9>/tmp/vm-bazel.lock
+exec 9>$jobs_dir.lock
 echo "Waiting for the VM build lock..."
 flock 9
 
@@ -108,12 +120,16 @@ HELPER
 	if [[ -f "\$dir/docker/config.json" ]]; then
 		export DOCKER_CONFIG="\$dir/docker"
 	fi
-	bazel $bazel_args
+	if [[ -f "\$dir/github-token" ]]; then
+		GH_TOKEN=\$(cat "\$dir/github-token")
+		export GH_TOKEN
+	fi
+	$command
 }
 
 (main)
 rc=\$?
-rm -rf "\$dir/docker" "\$dir/buildbuddy-api-key"
+rm -rf "\$dir/docker" "\$dir/buildbuddy-api-key" "\$dir/github-token"
 echo "\$rc" > "\$dir/exit"
 EOF
 }
@@ -127,7 +143,8 @@ cleanup() {
     remote "test -f $dir/pid && kill -TERM -- -\$(cat $dir/pid)" || true
   fi
   remote "rm -rf $dir" || true
-  if [[ $pause == true ]]; then
+  # Pausing would freeze another job still waiting on the lock, so only the last one out pauses.
+  if [[ $pause == true && $(remote "ls -A $jobs_dir 2>/dev/null | wc -l" || echo 1) == 0 ]]; then
     # One attempt only: the idle timer pauses it anyway if this fails.
     echo "Pausing the MicroVM"
     timeout 30 doctl --http-retry-max 0 compute microvm pause "$vm" >/dev/null || echo "Pausing failed; the idle timer will pause it" >&2
@@ -157,6 +174,9 @@ fi
 remote "umask 077 && mkdir -p $dir"
 if [[ -n ${BUILDBUDDY_API_KEY:-} ]]; then
   put_secret "$dir/buildbuddy-api-key" "$BUILDBUDDY_API_KEY"
+fi
+if [[ -n ${VM_GITHUB_TOKEN:-} ]]; then
+  put_secret "$dir/github-token" "$VM_GITHUB_TOKEN"
 fi
 if [[ $registry_push == true ]]; then
   registry_config=$(doctl registry docker-config --read-write --expiry-seconds 1800)

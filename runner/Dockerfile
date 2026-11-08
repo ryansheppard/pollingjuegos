@@ -3,7 +3,7 @@ FROM docker.io/library/debian:trixie-slim@sha256:7378260c0a098d27ac206225db5e7d9
 COPY --from=ghcr.io/jdx/mise:2026.10.4-debian /usr/local/bin/mise /usr/local/bin/mise
 
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends ca-certificates git \
+  && apt-get install -y --no-install-recommends ca-certificates gh git zip \
   && rm -rf /var/lib/apt/lists/*
 
 RUN useradd --create-home runner && install -d -o runner -g runner /src
