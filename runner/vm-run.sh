@@ -127,7 +127,9 @@ HELPER
 	$command
 }
 
-(main)
+# The Bazel server daemonizes and outlives the job; if it inherited the lock's fd it
+# would hold the lock forever, so the command runs with that fd closed.
+(main) 9>&-
 rc=\$?
 rm -rf "\$dir/docker" "\$dir/buildbuddy-api-key" "\$dir/github-token"
 echo "\$rc" > "\$dir/exit"
