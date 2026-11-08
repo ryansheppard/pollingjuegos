@@ -3,7 +3,7 @@
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@with_cfg.bzl", "with_cfg")
 
-# Without this, `bazel run //rust:push` ships whatever -c mode the invocation
+# Without this, `bazel run //backend:push` ships whatever -c mode the invocation
 # used, which defaults to an unoptimized binary with full debug info.
 opt_image_manifest, _opt_image_manifest_internal = (
     with_cfg(image_manifest)

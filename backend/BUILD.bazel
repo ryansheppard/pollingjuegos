@@ -16,7 +16,7 @@ rust_library(
     ),
     aliases = aliases(),
     compile_data = glob(["migrations/**"]),
-    crate_name = "rust",
+    crate_name = "backend",
     deps = all_crate_deps(normal = True),
 )
 

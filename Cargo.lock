@@ -345,6 +345,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 
 [[package]]
+name = "backend"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "api-types",
+ "base64 0.23.1",
+ "bytes",
+ "cookie",
+ "jiff",
+ "ntex",
+ "parquet",
+ "rand",
+ "refinery",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "sha2",
+ "thiserror 2.0.21",
+]
+
+[[package]]
 name = "backtrace"
 version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3916,29 +3939,6 @@ dependencies = [
  "libsqlite3-sys",
  "smallvec",
  "sqlite-wasm-rs",
-]
-
-[[package]]
-name = "rust"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "api-types",
- "base64 0.23.1",
- "bytes",
- "cookie",
- "jiff",
- "ntex",
- "parquet",
- "rand",
- "refinery",
- "rusqlite",
- "rustls",
- "serde",
- "serde_json",
- "serde_urlencoded",
- "sha2",
- "thiserror 2.0.21",
 ]
 
 [[package]]

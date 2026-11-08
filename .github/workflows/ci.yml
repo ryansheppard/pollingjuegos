@@ -67,8 +67,8 @@ jobs:
         run: |
           set -euo pipefail
           release="${GITHUB_SHA::12}"
-          bazel run //rust:push -- -tag "backend-$release"
-          bazel run //frontend:push -- -tag "frontend-$release"
+          bazel run //backend:push -- -tag "$release"
+          bazel run //frontend:push -- -tag "$release"
           echo "Published $release" >> "$GITHUB_STEP_SUMMARY"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}

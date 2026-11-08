@@ -91,13 +91,13 @@ image_load(
     daemon = "podman",
     image = ":image",
     registry = "registry.digitalocean.com",
-    repository = "pollingjuegos/backend",
-    tag = "frontend-local",
+    repository = "pollingjuegos/frontend",
+    tag = "frontend",
 )
 
 image_push(
     name = "push",
     image = ":image",
     registry = "registry.digitalocean.com",
-    repository = "pollingjuegos/backend",
+    repository = "pollingjuegos/frontend",
 )
