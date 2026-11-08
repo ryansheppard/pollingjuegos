@@ -64,8 +64,6 @@ opt_image_manifest(
     layers = [
         ":layer",
     ],
-    # Builds the app a second time in opt via with_cfg; keep it out of `bazel test //...`.
-    tags = ["manual"],
 )
 
 image_load(
@@ -75,7 +73,6 @@ image_load(
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
     tag = "latest",
-    tags = ["manual"],
 )
 
 image_push(
@@ -83,5 +80,4 @@ image_push(
     image = ":image",
     registry = "registry.digitalocean.com",
     repository = "pollingjuegos/backend",
-    tags = ["manual"],
 )
