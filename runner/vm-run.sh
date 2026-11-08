@@ -80,62 +80,6 @@ put_secret() {
   remote "umask 077 && mkdir -p \"\$(dirname $path)\" && printf %s $encoded | base64 -d > $path"
 }
 
-# The job script runs detached on the VM because exec commands time out after 60s.
-job_script() {
-  local command
-  command=$(printf '%q ' "$@")
-  cat <<EOF
-#!/usr/bin/env bash
-set -uo pipefail
-dir=$dir
-echo \$\$ > "\$dir/pid"
-
-exec 9>$jobs_dir.lock
-echo "Waiting for the VM build lock..."
-flock 9
-
-main() {
-	set -e
-	bazelrc="common --color=no --curses=no"
-	if [[ -f "\$dir/buildbuddy-api-key" ]]; then
-		install -D -m 600 "\$dir/buildbuddy-api-key" ~/.config/buildbuddy/api-key
-		cat > ~/.config/buildbuddy/credential-helper <<'HELPER'
-#!/bin/sh
-# Bazel credential helper protocol: discard the request, answer with headers.
-cat > /dev/null
-printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "\$(cat "\$HOME/.config/buildbuddy/api-key")"
-HELPER
-		chmod 700 ~/.config/buildbuddy/credential-helper
-		bazelrc+=\$'\n'"common --credential_helper=*.buildbuddy.io=\$HOME/.config/buildbuddy/credential-helper"
-	fi
-	printf '%s\n' "\$bazelrc" > ~/.bazelrc
-
-	[[ -d /src/pollingjuegos/.git ]] || git clone --quiet --depth 1 $(printf '%q' "$repo_url") /src/pollingjuegos
-	cd /src/pollingjuegos
-	git fetch --quiet --depth 1 origin $sha
-	git checkout --quiet --force FETCH_HEAD
-	echo "Checked out \$(git log --oneline -1)"
-	mise install bazel
-
-	if [[ -f "\$dir/docker/config.json" ]]; then
-		export DOCKER_CONFIG="\$dir/docker"
-	fi
-	if [[ -f "\$dir/github-token" ]]; then
-		GH_TOKEN=\$(cat "\$dir/github-token")
-		export GH_TOKEN
-	fi
-	$command
-}
-
-# The Bazel server daemonizes and outlives the job; if it inherited the lock's fd it
-# would hold the lock forever, so the command runs with that fd closed.
-(main) 9>&-
-rc=\$?
-rm -rf "\$dir/docker" "\$dir/buildbuddy-api-key" "\$dir/github-token"
-echo "\$rc" > "\$dir/exit"
-EOF
-}
-
 finished=false
 cleanup() {
   # A second Ctrl-C during cleanup should abandon it, not restart it.
@@ -185,8 +129,9 @@ if [[ $registry_push == true ]]; then
   put_secret "$dir/docker/config.json" "$registry_config"
 fi
 
-script=$(job_script "$@" | base64 -w0)
-remote "printf %s $script | base64 -d > $dir/job.sh && setsid nohup bash $dir/job.sh > $dir/log 2>&1 < /dev/null &"
+job=$(base64 -w0 <"$(dirname "${BASH_SOURCE[0]}")/job.sh")
+args=$(printf '%q ' "$dir" "$repo_url" "$sha" "$@")
+remote "printf %s $job | base64 -d > $dir/job.sh && setsid nohup bash $dir/job.sh $args > $dir/log 2>&1 < /dev/null &"
 
 # Each poll returns "<bytes sent through> <full log size> <exit code or ->", then the
 # log bytes. Reading the exit file first means a set exit code covers the whole log.
