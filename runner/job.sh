@@ -11,24 +11,20 @@ sha=$3
 shift 3
 echo $$ >"$dir/pid"
 
-# Shared by every job dir under the same parent, so jobs on one VM run one at a time.
-exec 9>"${dir%/*}.lock"
-echo "Waiting for the VM build lock..."
-flock 9
-
 main() {
   set -e
   bazelrc="common --color=no --curses=no"
+  # Kept in the job dir, which is wiped before the template is checkpointed, so the key
+  # never lands on a checkpoint's disk.
   if [[ -f "$dir/buildbuddy-api-key" ]]; then
-    install -D -m 600 "$dir/buildbuddy-api-key" ~/.config/buildbuddy/api-key
-    cat >~/.config/buildbuddy/credential-helper <<'HELPER'
+    cat >"$dir/credential-helper" <<HELPER
 #!/bin/sh
 # Bazel credential helper protocol: discard the request, answer with headers.
 cat > /dev/null
-printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "$(cat "$HOME/.config/buildbuddy/api-key")"
+printf '{"headers":{"x-buildbuddy-api-key":["%s"]}}\n' "\$(cat "$dir/buildbuddy-api-key")"
 HELPER
-    chmod 700 ~/.config/buildbuddy/credential-helper
-    bazelrc+=$'\n'"common --credential_helper=*.buildbuddy.io=$HOME/.config/buildbuddy/credential-helper"
+    chmod 700 "$dir/credential-helper"
+    bazelrc+=$'\n'"common --credential_helper=*.buildbuddy.io=$dir/credential-helper"
   fi
   printf '%s\n' "$bazelrc" >~/.bazelrc
 
@@ -49,9 +45,7 @@ HELPER
   "$@"
 }
 
-# The Bazel server daemonizes and outlives the job; if it inherited the lock's fd it
-# would hold the lock forever, so the command runs with that fd closed.
-(main "$@") 9>&-
+(main "$@")
 rc=$?
-rm -rf "$dir/docker" "$dir/buildbuddy-api-key" "$dir/github-token"
+rm -rf "$dir/docker" "$dir/buildbuddy-api-key" "$dir/credential-helper" "$dir/github-token"
 echo "$rc" >"$dir/exit"

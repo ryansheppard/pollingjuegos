@@ -14,6 +14,10 @@ jobs:
   test:
     name: Run tests
     runs-on: ubuntu-latest
+    concurrency:
+      # Main runs test on the template MicroVM and checkpoint it, so they take turns there.
+      group: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && 'runner-checkpoint' || format('test-{0}', github.run_id) }}
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -26,7 +30,9 @@ jobs:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
           # PRs test their head commit; the VM can't fetch GitHub's synthetic merge commit.
           COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
-        run: runner/vm-run.sh pollingjuegos-runner "$COMMIT" -- bazel test //... --test_output=errors
+          VM_RUN_FLAGS: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' && '--checkpoint' || '' }}
+        # Unquoted so an empty value adds no argument.
+        run: runner/vm-run.sh $VM_RUN_FLAGS pollingjuegos-runner "$COMMIT" -- bazel test //... --test_output=errors
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
         with:
@@ -41,7 +47,7 @@ jobs:
     environment: production
     timeout-minutes: 45
     concurrency:
-      # The runner MicroVM has one checkout and one Bazel server, so builds take turns.
+      # Keeps image tags landing in commit order ahead of deploy.
       group: publish-main
       cancel-in-progress: false
     steps:
@@ -58,8 +64,9 @@ jobs:
         run: |
           set -euo pipefail
           release="${GITHUB_SHA::12}"
-          runner/vm-run.sh --registry-push --no-pause pollingjuegos-runner "$GITHUB_SHA" -- bazel run //backend:push -- -tag "$release"
-          runner/vm-run.sh --registry-push pollingjuegos-runner "$GITHUB_SHA" -- bazel run //frontend:push -- -tag "$release"
+          # One call so both pushes share a job MicroVM and its Bazel server.
+          runner/vm-run.sh --registry-push pollingjuegos-runner "$GITHUB_SHA" -- \
+            bash -c 'bazel run //backend:push -- -tag "$1" && bazel run //frontend:push -- -tag "$1"' _ "$release"
           echo "Published $release" >> "$GITHUB_STEP_SUMMARY"
       - uses: tsickert/discord-webhook@b217a69502f52803de774ded2b1ab7c282e99645  # v7.0.0
         if: ${{ failure() }}
