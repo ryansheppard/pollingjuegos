@@ -3,6 +3,7 @@ load("@bazel_lib//lib:copy_to_directory.bzl", "copy_to_directory")
 load("@bazel_lib//lib:write_source_files.bzl", "write_source_files")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//frontend:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//frontend:vitest/package_json.bzl", vitest_bin = "bin")
 load("@npm//frontend:vue-tsc/package_json.bzl", vue_tsc_bin = "bin")
 load("@rules_img//img:image.bzl", "image_manifest")
 load("@rules_img//img:layer.bzl", "image_layer")
@@ -63,6 +64,14 @@ vue_tsc_bin.vue_tsc_test(
         "--project",
         "tsconfig.json",
     ],
+    chdir = package_name(),
+    data = _FRONTEND_INPUTS + [":node_modules"],
+)
+
+vitest_bin.vitest_test(
+    name = "unit_test",
+    size = "small",
+    args = ["run"],
     chdir = package_name(),
     data = _FRONTEND_INPUTS + [":node_modules"],
 )

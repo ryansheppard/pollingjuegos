@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "vite --host localhost",
     "build": "vue-tsc --noEmit && vite build",
-    "preview": "vite preview --host localhost"
+    "preview": "vite preview --host localhost",
+    "test": "vitest run"
   },
   "dependencies": {
     "vue": "^3.5.43"
@@ -13,8 +14,10 @@
   "devDependencies": {
     "@types/node": "^24.19.2",
     "@vitejs/plugin-vue": "^6.0.9",
+    "oxlint": "^1.88.0",
     "typescript": "^5.9.3",
     "vite": "^8.3.3",
+    "vitest": "^5.0.5",
     "vue-tsc": "^3.2.5"
   }
 }

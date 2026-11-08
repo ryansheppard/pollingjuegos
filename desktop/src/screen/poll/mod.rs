@@ -11,14 +11,15 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
-use api_types::{Ballot, Quarterback, QuarterbackStats, QuarterbackWithStats, Rankings, Week};
+use api_types::{
+    BALLOT_SIZE, Ballot, Quarterback, QuarterbackStats, QuarterbackWithStats, Rankings, Week,
+};
 use iced::event::{self, Event};
 use iced::keyboard::{self, Key, key::Named};
 use iced::widget::{button, center, column, container, opaque, row, space, stack, text};
 use iced::{Alignment, Element, Length, Subscription, Task, Theme};
 use jiff::Timestamp;
 
-use self::logic::BALLOT_SIZE;
 pub use self::logic::Lens;
 use super::Action;
 use crate::session::{Client, Session};

@@ -5,6 +5,12 @@ use jiff::Timestamp;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// Also the points scale: #1 earns `BALLOT_SIZE` down to 1 for last. The
+/// backend's `week_scores` triggers (migration V4) can't read this and
+/// hardcode it, so a backend test checks them against it.
+pub const BALLOT_SIZE: usize = 15;
+pub const RANKINGS_SIZE: usize = 10;
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 pub struct Week {
     pub id: i64,

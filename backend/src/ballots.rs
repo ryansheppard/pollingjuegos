@@ -1,10 +1,9 @@
 use rusqlite::{Connection, OptionalExtension, Row, Transaction, TransactionBehavior, params};
 
 use crate::error::{AppError, Result};
-use api_types::{Ballot, BallotEntry, Quarterback, RankingEntry, Rankings, Team};
-
-pub const BALLOT_SIZE: i64 = 15;
-const RANKINGS_SIZE: i64 = 10;
+use api_types::{
+    BALLOT_SIZE, Ballot, BallotEntry, Quarterback, RANKINGS_SIZE, RankingEntry, Rankings, Team,
+};
 
 /// Selects `q.id, q.name` plus the team columns `qb_from_row` expects; callers
 /// must alias `quarterbacks` as `q` and LEFT JOIN `teams` as `t`.
@@ -129,7 +128,7 @@ pub fn submit_ballot(
     let mut distinct = quarterback_ids.to_vec();
     distinct.sort_unstable();
     distinct.dedup();
-    if quarterback_ids.len() as i64 != BALLOT_SIZE || distinct.len() as i64 != BALLOT_SIZE {
+    if quarterback_ids.len() != BALLOT_SIZE || distinct.len() != BALLOT_SIZE {
         return Err(AppError::BadRequest(
             "A ballot must contain exactly 15 distinct quarterbacks",
         ));
@@ -142,7 +141,7 @@ pub fn submit_ballot(
             [serde_json::to_string(&distinct).expect("i64s encode")],
             |row| row.get(0),
         )?;
-    if existing != BALLOT_SIZE {
+    if existing != BALLOT_SIZE as i64 {
         return Err(AppError::BadRequest(
             "One or more quarterbacks do not exist",
         ));
@@ -199,7 +198,7 @@ fn top_scores(conn: &Connection, poll_week_id: i64) -> Result<Vec<Score>> {
              ORDER BY s.points DESC, s.votes DESC, q.name, q.id
              LIMIT ?2"
         ))?
-        .query_map(params![poll_week_id, RANKINGS_SIZE], |row| {
+        .query_map(params![poll_week_id, RANKINGS_SIZE as i64], |row| {
             Ok(Score {
                 quarterback: qb_from_row(row)?,
                 points: row.get("points")?,
@@ -307,7 +306,7 @@ mod tests {
             "SELECT b.poll_week_id, v.quarterback_id, sum(?1 + 1 - v.rank), count(*)
              FROM ballots b JOIN votes v ON v.ballot_id = b.id
              GROUP BY 1, 2 ORDER BY 1, 2",
-            &[&BALLOT_SIZE],
+            &[&(BALLOT_SIZE as i64)],
         );
         let actual = rows(
             "SELECT poll_week_id, quarterback_id, points, votes FROM week_scores ORDER BY 1, 2",
