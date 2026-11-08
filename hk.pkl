@@ -4,4 +4,6 @@ import "package://github.com/jdx/hk/releases/download/v2.3.1/hk@2.3.1#/Builtins.
 steps {
     ["gitleaks"] = Builtins.gitleaks
     ["taplo-format"] = Builtins.taplo_format
+    ["shellcheck"] = Builtins.shellcheck
+    ["shfmt"] = Builtins.shfmt
 }
