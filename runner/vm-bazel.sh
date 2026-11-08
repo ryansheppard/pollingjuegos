@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs a Bazel command for one commit on the runner MicroVM and streams its output.
 #
-# Usage: runner/vm-bazel.sh [--registry-push] <microvm-id> <commit-sha> -- <bazel args...>
+# Usage: runner/vm-bazel.sh [--registry-push] [--no-pause] <microvm-id> <commit-sha> -- <bazel args...>
 #
 # Environment:
 #   DIGITALOCEAN_ACCESS_TOKEN  token for doctl (DIGITALOCEAN_TOKEN is used as a fallback)
@@ -10,15 +10,21 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: $0 [--registry-push] <microvm-id> <commit-sha> -- <bazel args...>" >&2
+  echo "usage: $0 [--registry-push] [--no-pause] <microvm-id> <commit-sha> -- <bazel args...>" >&2
   exit 2
 }
 
 registry_push=false
-if [[ ${1:-} == --registry-push ]]; then
-  registry_push=true
+pause=true
+while [[ ${1:-} == --* ]]; do
+  case $1 in
+  --registry-push) registry_push=true ;;
+  # For back-to-back calls, so the VM isn't paused and resumed between them.
+  --no-pause) pause=false ;;
+  *) usage ;;
+  esac
   shift
-fi
+done
 (($# >= 4)) && [[ $3 == -- ]] || usage
 vm=$1
 sha=$2
@@ -121,9 +127,11 @@ cleanup() {
     remote "test -f $dir/pid && kill -TERM -- -\$(cat $dir/pid)" || true
   fi
   remote "rm -rf $dir" || true
-  # One attempt only: the idle timer pauses it anyway if this fails.
-  echo "Pausing the MicroVM"
-  timeout 30 doctl --http-retry-max 0 compute microvm pause "$vm" >/dev/null || echo "Pausing failed; the idle timer will pause it" >&2
+  if [[ $pause == true ]]; then
+    # One attempt only: the idle timer pauses it anyway if this fails.
+    echo "Pausing the MicroVM"
+    timeout 30 doctl --http-retry-max 0 compute microvm pause "$vm" >/dev/null || echo "Pausing failed; the idle timer will pause it" >&2
+  fi
 }
 trap cleanup EXIT
 # Bash skips EXIT traps when killed by these, and Actions sends them on cancel.
