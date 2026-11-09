@@ -1,7 +1,7 @@
 load("@crates//:defs.bzl", "aliases", "all_crate_deps")
 load("@rules_rs//rs:rust_binary.bzl", "rust_binary")
 load("@rules_rs//rs:rust_library.bzl", "rust_library")
-load("@rules_rust//rust:defs.bzl", "rust_clippy_test")
+load("@rules_rust//rust:defs.bzl", "rust_clippy_test", "rustfmt_test")
 
 rust_library(
     name = "api-types",
@@ -32,6 +32,15 @@ genrule(
 
 rust_clippy_test(
     name = "clippy_test",
+    size = "small",
+    targets = [
+        ":api-types",
+        ":gen_ts",
+    ],
+)
+
+rustfmt_test(
+    name = "rustfmt_test",
     size = "small",
     targets = [
         ":api-types",
