@@ -1,5 +1,6 @@
 use std::fmt;
 
+use api_types::BALLOT_SIZE;
 use iced::widget::{button, column, container, pick_list, row, rule, space, text};
 use iced::{Alignment, Element, Length, Theme, padding};
 
@@ -218,7 +219,11 @@ fn tabs(poll: &Poll) -> Element<'_, Message> {
         .on_press_maybe(enabled.then_some(Message::SelectTab(tab)))
     };
     row![
-        tab("Your ballot", Some(format!("{picks}/15")), Tab::Ballot),
+        tab(
+            "Your ballot",
+            Some(format!("{picks}/{BALLOT_SIZE}")),
+            Tab::Ballot
+        ),
         tab("Results · Top 10", None, Tab::Results),
     ]
     .spacing(4)

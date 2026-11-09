@@ -6,4 +6,10 @@ steps {
     ["taplo-format"] = Builtins.taplo_format
     ["shellcheck"] = Builtins.shellcheck
     ["shfmt"] = Builtins.shfmt
+    ["terraform"] = Builtins.terraform
+    ["oxlint"] {
+        glob = List("frontend/**/*.ts", "frontend/**/*.vue")
+        check = "frontend/node_modules/.bin/oxlint --deny-warnings --report-unused-disable-directives {{files}}"
+        fix = "frontend/node_modules/.bin/oxlint --fix {{files}}"
+    }
 }

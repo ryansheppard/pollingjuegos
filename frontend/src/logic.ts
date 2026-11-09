@@ -1,6 +1,6 @@
-import type { BallotEntry, Quarterback, QuarterbackStats, RankBand, Rankings, Week } from './api.gen'
+import { BALLOT_SIZE, RANKINGS_SIZE, type BallotEntry, type Quarterback, type QuarterbackStats, type RankBand, type Rankings, type Week } from './api.gen'
 
-export const BALLOT_SIZE = 15
+export { BALLOT_SIZE, RANKINGS_SIZE }
 
 export type Lens = 'crowd' | 'qbr' | 'epa' | 'cpoe'
 export const lenses: { key: Lens, label: string }[] = [
@@ -76,7 +76,7 @@ export function disagreements(saved: BallotEntry[], rankings: Rankings): Disagre
     .map((entry) => ({ quarterback: entry.quarterback, mine: entry.rank, crowd: crowd.get(entry.quarterback.id) }))
     .filter((row) => row.crowd !== row.mine)
     // Picks outside the top 10 count as if ranked just below it.
-    .sort((a, b) => Math.abs(b.mine - (b.crowd ?? 11)) - Math.abs(a.mine - (a.crowd ?? 11)))
+    .sort((a, b) => Math.abs(b.mine - (b.crowd ?? RANKINGS_SIZE + 1)) - Math.abs(a.mine - (a.crowd ?? RANKINGS_SIZE + 1)))
     .slice(0, 3)
 }
 

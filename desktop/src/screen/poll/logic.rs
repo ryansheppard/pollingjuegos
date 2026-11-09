@@ -3,7 +3,9 @@
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
-use api_types::{Ballot, Quarterback, QuarterbackStats, RankBand, Rankings, Week};
+use api_types::{
+    BALLOT_SIZE, Ballot, Quarterback, QuarterbackStats, RANKINGS_SIZE, RankBand, Rankings, Week,
+};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use serde::{Deserialize, Serialize};
@@ -78,7 +80,8 @@ pub fn disagreements<'a>(saved: &'a Ballot, rankings: &Rankings) -> Vec<Disagree
         .filter(|row| row.crowd != Some(row.mine))
         .collect();
     // Picks outside the top 10 count as if ranked just below it.
-    rows.sort_by_key(|row| Reverse((row.mine - row.crowd.unwrap_or(11)).abs()));
+    let below_rankings = RANKINGS_SIZE as i64 + 1;
+    rows.sort_by_key(|row| Reverse((row.mine - row.crowd.unwrap_or(below_rankings)).abs()));
     rows.truncate(3);
     rows
 }
@@ -86,7 +89,7 @@ pub fn disagreements<'a>(saved: &'a Ballot, rankings: &Rankings) -> Vec<Disagree
 /// Plain-text stand-in for the web app's shareable results image.
 pub fn results_text(week: &Week, rankings: &Rankings) -> String {
     let mut out = format!(
-        "PollingJuegos · {} top 10\n{} ballots · 15 points for #1 through 1 for #15\n",
+        "PollingJuegos · {} top {RANKINGS_SIZE}\n{} ballots · {BALLOT_SIZE} points for #1 through 1 for #{BALLOT_SIZE}\n",
         week_label(week),
         rankings.ballots
     );
@@ -100,8 +103,6 @@ pub fn results_text(week: &Week, rankings: &Rankings) -> String {
     }
     out
 }
-
-pub const BALLOT_SIZE: usize = 15;
 
 /// What the badge on each ballot row shows.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

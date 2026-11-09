@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { loadQuarterbacks, request, saveBallot, type Ballot, type Quarterback, type QuarterbackWithStats, type Rankings, type Week } from './api'
-import { badge, disagreements as findDisagreements, isClosed, lenses, matchesSearch, statLine, timeLeft as formatTimeLeft, type Lens } from './logic'
+import { BALLOT_SIZE, RANKINGS_SIZE, badge, disagreements as findDisagreements, isClosed, lenses, matchesSearch, statLine, timeLeft as formatTimeLeft, type Lens } from './logic'
 import SaveBar from './components/SaveBar.vue'
 
 const weeks = ref<Week[]>([])
@@ -53,19 +53,15 @@ const nextWeek = computed(() => {
   const index = weeks.value.findIndex((w) => `${w.season}/${w.week}` === selected.value)
   return index > 0 ? weeks.value[index - 1] : undefined
 })
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function stepWeek(target: Week | undefined) {
   if (target && !loading.value && !saving.value) selected.value = `${target.season}/${target.week}`
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const closesLabel = computed(() => {
   if (!week.value?.closes_at) return 'No deadline'
   return new Date(week.value.closes_at).toLocaleString(undefined, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })
 })
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const timeLeft = computed(() => week.value ? formatTimeLeft(week.value, now.value) : '—')
 const crowdRanks = computed(() => new Map((rankings.value?.rankings ?? []).map((row) => [row.quarterback.id, row.rank])))
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function focusSearch() {
   searchInput.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   searchInput.value?.focus({ preventScroll: true })
@@ -79,23 +75,19 @@ async function onSearchHotkey(event: KeyboardEvent) {
   await nextTick()
   focusSearch()
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function removeAt(index: number) {
   const [qb] = ballot.value.splice(index, 1)
   openSlot.value = null
   message.value = ''
   removed.value = qb ? { qb, index } : null
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
-const canUndo = computed(() => !!removed.value && !closed.value && ballot.value.length < 15 &&
+const canUndo = computed(() => !!removed.value && !closed.value && ballot.value.length < BALLOT_SIZE &&
   !ballot.value.some((qb) => qb.id === removed.value?.qb.id))
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function undoRemove() {
   if (!removed.value || !canUndo.value || saving.value) return
   ballot.value.splice(Math.min(removed.value.index, ballot.value.length), 0, removed.value.qb)
   removed.value = null
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function startDrag(event: PointerEvent, index: number) {
   if (closed.value || saving.value || event.button !== 0) return
   event.preventDefault()
@@ -141,7 +133,6 @@ const disagreements = computed(() => {
   return findDisagreements(saved, rankings.value)
 })
 function sameIds(a: number[], b: number[]) { return a.length === b.length && a.every((id, index) => id === b[index]) }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const dirty = computed(() => !sameIds(ballot.value.map((qb) => qb.id), savedIds.value))
 function draftStorage() { try { return window.localStorage } catch { return null } }
 watch(ballot, () => {
@@ -154,7 +145,6 @@ watch(ballot, () => {
   } catch { /* Private browsing or full storage: ballot still works without draft recovery. */ }
 }, { deep: true })
 const topScore = computed(() => rankings.value?.rankings[0]?.points || 1)
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const available = computed(() => {
   const selectedIds = new Set(ballot.value.map((qb) => qb.id))
   return catalog.value.filter((qb) => !selectedIds.has(qb.id) && matchesSearch(qb, search.value))
@@ -175,37 +165,30 @@ watch(lens, (value) => {
 })
 // Ballot rows come back from saves without stats, so join them from the catalog.
 const statsById = computed(() => new Map(catalog.value.map((qb) => [qb.id, qb.stats])))
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const qualifiedCount = computed(() => catalog.value.find((qb) => qb.stats)?.stats?.qualified_count ?? 0)
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const showBadge = computed(() => lens.value !== 'crowd' || !!rankings.value?.ballots)
 function badgeFor(qb: Quarterback) {
   return badge(lens.value, crowdRanks.value.get(qb.id), statsById.value.get(qb.id))
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 const ballotRows = computed(() => ballot.value.map((qb) => ({ qb, badge: badgeFor(qb) })))
 
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function addQuarterback(qb: Quarterback) {
-  if (saving.value || ballot.value.length >= 15 || ballot.value.some((entry) => entry.id === qb.id)) return
+  if (saving.value || ballot.value.length >= BALLOT_SIZE || ballot.value.some((entry) => entry.id === qb.id)) return
   if (qb.name.trim().toLowerCase() === 'cam ward' && !window.confirm('Are you sure?')) return
   ballot.value.push(qb)
   search.value = ''
   message.value = ''
   removed.value = null
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function addTopMatch() {
   const top = available.value[0]
   if (top && search.value.trim() && !closed.value) addQuarterback(top)
 }
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function onSearchEscape() {
   if (search.value) search.value = ''
   else searchInput.value?.blur()
 }
 
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 function move(index: number, direction: number) {
   const entries = [...ballot.value]
   ;[entries[index], entries[index + direction]] = [entries[index + direction]!, entries[index]!]
@@ -247,7 +230,7 @@ async function loadWeek() {
       try {
         const stored: unknown = JSON.parse(draftStorage()?.getItem(key) ?? 'null')
         const known = new Set(catalog.value.map((qb) => qb.id))
-        if (Array.isArray(stored) && stored.length <= 15 && new Set(stored).size === stored.length &&
+        if (Array.isArray(stored) && stored.length <= BALLOT_SIZE && new Set(stored).size === stored.length &&
             stored.every((value) => Number.isInteger(value) && known.has(value))) {
           ids = stored as number[]
           if (!sameIds(ids, savedIds.value)) message.value = 'Your unfinished draft was restored on this device.'
@@ -277,10 +260,9 @@ function clearWeek() {
   ballot.value = []
 }
 
-// oxlint-disable-next-line no-unused-vars -- Used in the Vue template.
 async function submit() {
   const current = week.value
-  if (!current || ballot.value.length !== 15 || saving.value || closed.value) return
+  if (!current || ballot.value.length !== BALLOT_SIZE || saving.value || closed.value) return
   saving.value = true
   error.value = ''
   message.value = ''
@@ -332,8 +314,8 @@ async function shareResults() {
     if (!ctx) throw new Error('Image export is not supported by this browser.')
     ctx.fillStyle = '#122b46'; ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.fillStyle = '#f09866'; ctx.font = 'bold 28px sans-serif'; ctx.fillText('POLLINGJUEGOS', 48, 62)
-    ctx.fillStyle = '#fff'; ctx.font = 'bold 44px sans-serif'; ctx.fillText(`${week.value.season} · WEEK ${week.value.week} TOP 10`, 48, 126)
-    ctx.font = '20px sans-serif'; ctx.fillStyle = '#b3bfcb'; ctx.fillText(`${rankings.value.ballots} ballots · 15 points for #1 through 1 for #15`, 48, 166)
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 44px sans-serif'; ctx.fillText(`${week.value.season} · WEEK ${week.value.week} TOP ${RANKINGS_SIZE}`, 48, 126)
+    ctx.font = '20px sans-serif'; ctx.fillStyle = '#b3bfcb'; ctx.fillText(`${rankings.value.ballots} ballots · ${BALLOT_SIZE} points for #1 through 1 for #${BALLOT_SIZE}`, 48, 166)
     rankings.value.rankings.forEach((row, i) => {
       const y = 226 + i * 58
       ctx.fillStyle = '#f09866'; ctx.font = 'bold 29px sans-serif'; ctx.fillText(String(row.rank).padStart(2, '0'), 48, y)
@@ -426,10 +408,10 @@ onMounted(async () => {
       </div>
       <div class="tabs" role="tablist" aria-label="View">
         <button id="tab-ballot" type="button" role="tab" class="tab" :aria-selected="tab === 'ballot'" aria-controls="panel-ballot" :disabled="ready && !weeks.length" @click="tab = 'ballot'">
-          Your ballot <span class="tab-chip">{{ ballot.length }}/15</span>
+          Your ballot <span class="tab-chip">{{ ballot.length }}/{{ BALLOT_SIZE }}</span>
         </button>
         <button id="tab-results" type="button" role="tab" class="tab" :aria-selected="tab === 'results'" aria-controls="panel-results" :disabled="ready && !weeks.length" @click="tab = 'results'">
-          <span>Results<span class="tab-extra"> · Top 10</span></span>
+          <span>Results<span class="tab-extra"> · Top {{ RANKINGS_SIZE }}</span></span>
         </button>
       </div>
     </div>
@@ -445,7 +427,7 @@ onMounted(async () => {
     <div v-if="!ready" class="layout" aria-busy="true">
       <p class="visually-hidden" role="status">Loading the field…</p>
       <section class="panel ballot-panel" inert>
-        <div class="panel-heading"><div><h2>Your top 15</h2></div></div>
+        <div class="panel-heading"><div><h2>Your top {{ BALLOT_SIZE }}</h2></div></div>
         <div class="slot-columns">
           <span class="column-label column-slot">Slot</span>
           <span class="column-label column-name">Quarterback</span>
@@ -456,7 +438,7 @@ onMounted(async () => {
           <span class="column-controls"></span>
         </div>
         <ol class="slot-list">
-          <li v-for="n in 15" :key="n" class="slot empty">
+          <li v-for="n in BALLOT_SIZE" :key="n" class="slot empty">
             <div class="slot-row">
               <span class="slot-number">{{ String(n).padStart(2, '0') }}</span>
               <span class="skeleton-bar"></span>
@@ -481,7 +463,7 @@ onMounted(async () => {
           </div>
         </div>
         <ul class="pool-list">
-          <li v-for="n in 15" :key="n">
+          <li v-for="n in BALLOT_SIZE" :key="n">
             <span class="team-badge skeleton-bar"></span>
             <span class="pool-player"><span class="skeleton-bar"></span><span class="skeleton-bar short"></span></span>
           </li>
@@ -494,7 +476,7 @@ onMounted(async () => {
       <section class="panel ballot-panel" aria-labelledby="ballot-title">
         <div class="panel-heading">
           <div>
-            <h2 id="ballot-title">Your top 15</h2>
+            <h2 id="ballot-title">Your top {{ BALLOT_SIZE }}</h2>
             <p v-if="closed" class="panel-sub">Voting is closed. Your saved ballot is read-only.</p>
           </div>
           <button v-if="previousWeek && !closed" type="button" class="secondary-button" :disabled="saving" @click="copyPrevious">
@@ -529,7 +511,7 @@ onMounted(async () => {
                 </span>
               </span>
               <span v-if="showBadge" class="crowd-chip" :class="badge.tone" :title="badge.title">{{ badge.text }}<span v-if="badge.rank" class="chip-rank">{{ badge.rank }}</span></span>
-              <span class="slot-points">{{ 15 - index }} pts</span>
+              <span class="slot-points">{{ BALLOT_SIZE - index }} pts</span>
               <button v-if="!closed" type="button" class="icon-button slot-toggle" :aria-expanded="openSlot === index" :aria-label="`Edit ${qb.name}`" @click="openSlot = openSlot === index ? null : index">
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>
               </button>
@@ -546,11 +528,11 @@ onMounted(async () => {
               </div>
             </div>
           </li>
-          <li v-for="slot in 15 - ballot.length" :key="`empty-${slot}`" class="slot empty">
+          <li v-for="slot in BALLOT_SIZE - ballot.length" :key="`empty-${slot}`" class="slot empty">
             <div class="slot-row">
               <span class="slot-number" aria-hidden="true">{{ String(ballot.length + slot).padStart(2, '0') }}</span>
               <span class="open-slot"><span>Open slot<span class="open-slot-extra"> — add a quarterback from the pool</span></span></span>
-              <span class="slot-points">{{ 15 - ballot.length - slot + 1 }} pts</span>
+              <span class="slot-points">{{ BALLOT_SIZE - ballot.length - slot + 1 }} pts</span>
             </div>
           </li>
         </ol>
@@ -588,7 +570,7 @@ onMounted(async () => {
                 </div>
               </dl>
             </span>
-            <button type="button" class="add-button" :disabled="ballot.length >= 15 || saving || closed" :aria-label="`Add ${qb.name}`" @click="addQuarterback(qb)">
+            <button type="button" class="add-button" :disabled="ballot.length >= BALLOT_SIZE || saving || closed" :aria-label="`Add ${qb.name}`" @click="addQuarterback(qb)">
               <svg aria-hidden="true" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg> Add
             </button>
           </li>
@@ -603,7 +585,7 @@ onMounted(async () => {
       <section class="panel results-panel" aria-labelledby="rankings-title">
         <div class="panel-heading">
           <div>
-            <h2 id="rankings-title">The top 10</h2>
+            <h2 id="rankings-title">The top {{ RANKINGS_SIZE }}</h2>
             <p class="panel-sub">{{ rankings?.ballots ?? 0 }} {{ rankings?.ballots === 1 ? 'ballot' : 'ballots' }} · {{ closed ? 'final' : 'live until voting closes' }}</p>
           </div>
           <button v-if="rankings?.rankings.length" type="button" class="secondary-button" @click="shareResults">
@@ -649,7 +631,7 @@ onMounted(async () => {
       <aside class="sidebar">
         <section v-if="savedIds.length && disagreements.length" class="panel side-card" aria-labelledby="vs-title">
           <h3 id="vs-title">You vs. the crowd</h3>
-          <p class="panel-sub">Your saved picks compared with the live top 10.</p>
+          <p class="panel-sub">Your saved picks compared with the live top {{ RANKINGS_SIZE }}.</p>
           <ul class="vs-list">
             <li v-for="row in disagreements" :key="row.quarterback.id">
               <span class="player-name">{{ row.quarterback.name }}</span>

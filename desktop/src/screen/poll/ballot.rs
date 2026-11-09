@@ -1,8 +1,8 @@
-use api_types::Quarterback;
+use api_types::{BALLOT_SIZE, Quarterback};
 use iced::widget::{button, column, container, progress_bar, row, rule, scrollable, space, text};
 use iced::{Alignment, Element, Length, Padding, Theme, padding};
 
-use super::logic::{self, BALLOT_SIZE, Lens, Tone};
+use super::logic::{self, Lens, Tone};
 use super::{Message, Poll, pool};
 use crate::style::{self, Chip};
 

@@ -1,5 +1,9 @@
 // Generated from api-types by `bazel run //frontend:update_api_types`. Do not edit.
 
+export const BALLOT_SIZE = 15
+
+export const RANKINGS_SIZE = 10
+
 export type Week = { id: number, season: number, week: number, closes_at: string | null, is_closed: boolean, 
 /**
  * The week clients open on: the oldest still taking votes, or the newest

@@ -3,8 +3,9 @@
 //! `bazel run //frontend:update_api_types`.
 
 use api_types::{
-    Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Me, Quarterback,
-    QuarterbackStats, QuarterbackWithStats, RankBand, RankingEntry, Rankings, Team, Week,
+    BALLOT_SIZE, Ballot, BallotEntry, BallotRequest, DesktopTokenRequest, DesktopTokenResponse, Me,
+    Quarterback, QuarterbackStats, QuarterbackWithStats, RANKINGS_SIZE, RankBand, RankingEntry,
+    Rankings, Team, Week,
 };
 use ts_rs::{Config, TS};
 
@@ -37,6 +38,8 @@ fn main() {
     println!(
         "// Generated from api-types by `bazel run //frontend:update_api_types`. Do not edit."
     );
+    println!("\nexport const BALLOT_SIZE = {BALLOT_SIZE}");
+    println!("\nexport const RANKINGS_SIZE = {RANKINGS_SIZE}");
     for decl in decls {
         println!("\n{decl}");
     }
